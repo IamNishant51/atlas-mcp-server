@@ -1,0 +1,76 @@
+{
+  "name": "atlas-mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server with multi-stage AI pipeline - works with any LLM provider (Ollama, OpenAI, Anthropic). Compatible with Cursor, GitHub Copilot, Windsurf, and more.",
+  "main": "dist/server.js",
+  "bin": {
+    "atlas-mcp": "./dist/mcp.js",
+    "atlas-server": "./dist/server.js"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:mcp": "tsx src/mcp.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:mcp": "node dist/mcp.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "llm",
+    "cursor",
+    "copilot",
+    "windsurf",
+    "claude",
+    "ollama",
+    "openai",
+    "anthropic",
+    "pipeline",
+    "code-generation",
+    "code-review",
+    "ai-assistant"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/atlas-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/atlas-mcp-server/issues"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/atlas-mcp-server#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/env": "^4.4.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^4.28.1",
+    "ollama": "^0.5.9",
+    "openai": "^4.70.0",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "simple-git": "^3.27.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
