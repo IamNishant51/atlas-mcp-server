@@ -12,9 +12,22 @@ import type { PipelineError, StageName, StageResult } from './types.js';
 // ============================================================================
 
 /**
+ * Check if running in MCP stdio mode (suppress pretty output)
+ */
+const isMcpMode = process.argv[1]?.includes('mcp') || process.env['MCP_MODE'] === 'true';
+
+/**
  * Create a configured pino logger instance
+ * In MCP mode, we disable pretty printing to avoid polluting stdio
  */
 export function createLogger(level: string = 'info') {
+  // In MCP mode, use silent or minimal logging to avoid interfering with stdio JSON
+  if (isMcpMode) {
+    return pino({
+      level: process.env['LOG_LEVEL'] ?? 'silent', // Silent by default in MCP mode
+    });
+  }
+  
   return pino({
     level,
     transport: {

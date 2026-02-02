@@ -7,6 +7,7 @@ import pino from 'pino';
 import type { PipelineError, StageName, StageResult } from './types.js';
 /**
  * Create a configured pino logger instance
+ * In MCP mode, we disable pretty printing to avoid polluting stdio
  */
 export declare function createLogger(level?: string): pino.Logger<never, boolean>;
 /** Default logger instance */
