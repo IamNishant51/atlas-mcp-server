@@ -46,14 +46,22 @@ export async function executePipeline(request) {
             confidence: intent.confidence,
             entityCount: intent.entities.length,
         }, 'Intent analysis complete');
-        // Stage 2: Git Context (parallel with context building)
+        // Stage 2 & 3: Git Context and Context Building (parallel execution)
         const gitContextPromise = request.repoPath
             ? executeStage('git', () => getGitContext(request.repoPath))
             : Promise.resolve({ stageResult: createSkippedStage('git'), output: null });
-        // Stage 3: Context Building
-        const { stageResult: gitResult, output: gitContext } = await gitContextPromise;
+        // Run git context in parallel - await it when needed
+        const [gitResultData, intentBasedContextData] = await Promise.all([
+            gitContextPromise,
+            executeStage('context', async () => {
+                // Wait for git context to complete first for full context
+                const { output: gitCtx } = await gitContextPromise;
+                return buildContext(intent, request.repoPath, gitCtx ?? undefined);
+            }),
+        ]);
+        const { stageResult: gitResult, output: gitContext } = gitResultData;
+        const { stageResult: contextResult, output: context } = intentBasedContextData;
         stages.push(gitResult);
-        const { stageResult: contextResult, output: context } = await executeStage('context', () => buildContext(intent, request.repoPath, gitContext ?? undefined));
         stages.push(contextResult);
         if (!contextResult.success || !context) {
             throw createPipelineError('CONTEXT_BUILD_FAILED', 'Failed to build context', 'context');

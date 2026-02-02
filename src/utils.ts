@@ -351,3 +351,102 @@ export function formatDuration(ms: number): string {
   const seconds = ((ms % 60000) / 1000).toFixed(0);
   return `${minutes}m ${seconds}s`;
 }
+
+// ============================================================================
+// Batch Processing Utilities
+// ============================================================================
+
+/**
+ * Process items in parallel with concurrency limit
+ */
+export async function parallelMap<T, R>(
+  items: T[],
+  fn: (item: T, index: number) => Promise<R>,
+  concurrency: number = 3
+): Promise<R[]> {
+  const results: R[] = [];
+  const executing: Promise<void>[] = [];
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
+    const promise = fn(item, i).then((result) => {
+      results[i] = result;
+    });
+    
+    executing.push(promise);
+    
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      // Remove completed promises
+      for (let j = executing.length - 1; j >= 0; j--) {
+        if (executing[j]) {
+          executing[j]!.then(() => executing.splice(j, 1)).catch(() => {});
+        }
+      }
+    }
+  }
+  
+  await Promise.all(executing);
+  return results;
+}
+
+/**
+ * Debounce async function calls
+ */
+export function debounce<T extends (...args: unknown[]) => Promise<unknown>>(
+  fn: T,
+  delayMs: number
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let pendingPromise: Promise<Awaited<ReturnType<T>>> | null = null;
+  
+  return (...args: Parameters<T>) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    
+    pendingPromise = new Promise((resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        fn(...args)
+          .then((result) => resolve(result as Awaited<ReturnType<T>>))
+          .catch(reject);
+      }, delayMs);
+    });
+    
+    return pendingPromise;
+  };
+}
+
+/**
+ * Memoize async function with TTL
+ */
+export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
+  fn: T,
+  ttlMs: number = 60000,
+  keyFn: (...args: Parameters<T>) => string = (...args) => JSON.stringify(args)
+): T {
+  const cache = new Map<string, { value: Awaited<ReturnType<T>>; expiry: number }>();
+  
+  return ((...args: Parameters<T>) => {
+    const key = keyFn(...args);
+    const now = Date.now();
+    const cached = cache.get(key);
+    
+    if (cached && cached.expiry > now) {
+      return Promise.resolve(cached.value);
+    }
+    
+    return fn(...args).then((result) => {
+      cache.set(key, { value: result as Awaited<ReturnType<T>>, expiry: now + ttlMs });
+      
+      // Cleanup old entries
+      if (cache.size > 100) {
+        for (const [k, v] of cache) {
+          if (v.expiry <= now) cache.delete(k);
+        }
+      }
+      
+      return result as Awaited<ReturnType<T>>;
+    });
+  }) as T;
+}

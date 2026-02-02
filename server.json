@@ -6,12 +6,12 @@
     "url": "https://github.com/IamNishant51/atlas-mcp-server",
     "source": "github"
   },
-  "version": "1.0.1",
+  "version": "1.0.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "atlas-pipeline-mcp",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "transport": {
         "type": "stdio"
       },

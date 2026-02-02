@@ -36,6 +36,9 @@ const DEFAULT_CONFIG: ServerConfig = {
   },
 };
 
+/** Request timeout configuration */
+const REQUEST_TIMEOUT_MS = parseInt(process.env['REQUEST_TIMEOUT_MS'] ?? '300000', 10); // 5 min default
+
 // ============================================================================
 // Server Factory
 // ============================================================================
@@ -60,6 +63,10 @@ export async function createServer(config: Partial<ServerConfig> = {}): Promise<
     },
     requestIdHeader: 'x-request-id',
     genReqId: () => generateId(),
+    connectionTimeout: 60000, // 60s connection timeout
+    keepAliveTimeout: 30000, // 30s keep-alive
+    requestTimeout: REQUEST_TIMEOUT_MS,
+    bodyLimit: 10 * 1024 * 1024, // 10MB max body
   });
 
   // Register plugins

@@ -114,4 +114,16 @@ export declare function nowISO(): string;
  * Format milliseconds to human-readable duration
  */
 export declare function formatDuration(ms: number): string;
+/**
+ * Process items in parallel with concurrency limit
+ */
+export declare function parallelMap<T, R>(items: T[], fn: (item: T, index: number) => Promise<R>, concurrency?: number): Promise<R[]>;
+/**
+ * Debounce async function calls
+ */
+export declare function debounce<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, delayMs: number): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * Memoize async function with TTL
+ */
+export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, ttlMs?: number, keyFn?: (...args: Parameters<T>) => string): T;
 //# sourceMappingURL=utils.d.ts.map

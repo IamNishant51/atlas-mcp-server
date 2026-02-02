@@ -24,6 +24,18 @@ import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError, } f
 import { z } from 'zod';
 import { logger, createTimer, safeStringify } from './utils.js';
 import { getActiveProvider, checkProviders } from './providers/index.js';
+// Provider cache to avoid repeated checks
+let cachedProvider = null;
+let providerCacheTime = 0;
+const PROVIDER_CACHE_TTL_MS = 60000; // 1 minute cache
+async function getCachedProvider() {
+    const now = Date.now();
+    if (!cachedProvider || now - providerCacheTime > PROVIDER_CACHE_TTL_MS) {
+        cachedProvider = await getActiveProvider();
+        providerCacheTime = now;
+    }
+    return cachedProvider;
+}
 import { analyzeIntent } from './tools/intent.js';
 import { buildContext, analyzeProject } from './tools/context.js';
 import { getGitContext } from './tools/git.js';

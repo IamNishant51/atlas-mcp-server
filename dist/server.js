@@ -31,6 +31,8 @@ const DEFAULT_CONFIG = {
         maxRetries: parseInt(process.env['OLLAMA_MAX_RETRIES'] ?? '3', 10),
     },
 };
+/** Request timeout configuration */
+const REQUEST_TIMEOUT_MS = parseInt(process.env['REQUEST_TIMEOUT_MS'] ?? '300000', 10); // 5 min default
 // ============================================================================
 // Server Factory
 // ============================================================================
@@ -53,6 +55,10 @@ export async function createServer(config = {}) {
         },
         requestIdHeader: 'x-request-id',
         genReqId: () => generateId(),
+        connectionTimeout: 60000, // 60s connection timeout
+        keepAliveTimeout: 30000, // 30s keep-alive
+        requestTimeout: REQUEST_TIMEOUT_MS,
+        bodyLimit: 10 * 1024 * 1024, // 10MB max body
     });
     // Register plugins
     if (serverConfig.corsEnabled) {

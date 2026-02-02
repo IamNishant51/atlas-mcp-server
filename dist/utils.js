@@ -276,4 +276,77 @@ export function formatDuration(ms) {
     const seconds = ((ms % 60000) / 1000).toFixed(0);
     return `${minutes}m ${seconds}s`;
 }
+// ============================================================================
+// Batch Processing Utilities
+// ============================================================================
+/**
+ * Process items in parallel with concurrency limit
+ */
+export async function parallelMap(items, fn, concurrency = 3) {
+    const results = [];
+    const executing = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const promise = fn(item, i).then((result) => {
+            results[i] = result;
+        });
+        executing.push(promise);
+        if (executing.length >= concurrency) {
+            await Promise.race(executing);
+            // Remove completed promises
+            for (let j = executing.length - 1; j >= 0; j--) {
+                if (executing[j]) {
+                    executing[j].then(() => executing.splice(j, 1)).catch(() => { });
+                }
+            }
+        }
+    }
+    await Promise.all(executing);
+    return results;
+}
+/**
+ * Debounce async function calls
+ */
+export function debounce(fn, delayMs) {
+    let timeoutId = null;
+    let pendingPromise = null;
+    return (...args) => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        pendingPromise = new Promise((resolve, reject) => {
+            timeoutId = setTimeout(() => {
+                fn(...args)
+                    .then((result) => resolve(result))
+                    .catch(reject);
+            }, delayMs);
+        });
+        return pendingPromise;
+    };
+}
+/**
+ * Memoize async function with TTL
+ */
+export function memoizeAsync(fn, ttlMs = 60000, keyFn = (...args) => JSON.stringify(args)) {
+    const cache = new Map();
+    return ((...args) => {
+        const key = keyFn(...args);
+        const now = Date.now();
+        const cached = cache.get(key);
+        if (cached && cached.expiry > now) {
+            return Promise.resolve(cached.value);
+        }
+        return fn(...args).then((result) => {
+            cache.set(key, { value: result, expiry: now + ttlMs });
+            // Cleanup old entries
+            if (cache.size > 100) {
+                for (const [k, v] of cache) {
+                    if (v.expiry <= now)
+                        cache.delete(k);
+                }
+            }
+            return result;
+        });
+    });
+}
 //# sourceMappingURL=utils.js.map
