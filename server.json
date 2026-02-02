@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.iamnishant51/atlas",
+  "name": "io.github.iamnishant51/atlas-pipeline",
   "description": "Multi-stage AI pipeline MCP server for intelligent code generation. Features 7 stages: Intent → Context → Git → Decompose → Variants → Critique → Optimize. Supports Ollama, OpenAI, and Anthropic providers.",
   "repository": {
     "url": "https://github.com/IamNishant51/atlas-mcp-server",
@@ -10,7 +10,7 @@
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "atlas-mcp-server",
+      "identifier": "atlas-pipeline-mcp",
       "version": "1.0.0",
       "transport": {
         "type": "stdio"

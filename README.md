@@ -26,10 +26,10 @@ npm install
 npm run build
 ```
 
-### From npm (Coming Soon)
+### From npm
 
 ```bash
-npm install -g atlas-mcp-server
+npm install -g atlas-pipeline-mcp
 ```
 
 ## ⚙️ Configuration
