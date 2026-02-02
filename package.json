@@ -1,6 +1,7 @@
 {
   "name": "atlas-mcp-server",
   "version": "1.0.0",
+  "mcpName": "io.github.iamnishant51/atlas",
   "description": "Model Context Protocol server with multi-stage AI pipeline - works with any LLM provider (Ollama, OpenAI, Anthropic). Compatible with Cursor, GitHub Copilot, Windsurf, and more.",
   "main": "dist/server.js",
   "bin": {
