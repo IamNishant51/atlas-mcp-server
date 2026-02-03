@@ -1,6 +1,6 @@
 {
   "name": "atlas-pipeline-mcp",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "mcpName": "io.github.IamNishant51/atlas-pipeline",
   "description": "Advanced AI/ML-powered MCP server with 4 new frontend developer tools: Performance Doctor, CSS Wizard, Animation Studio, API Helper. 27 professional tools total. Works with Cursor, Windsurf, Claude Desktop.",
   "main": "dist/server.js",
