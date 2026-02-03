@@ -2,14 +2,37 @@
  * Atlas Server - Git Context Tool
  *
  * Provides git repository context including:
- * - Current branch and status
- * - Recent commit history
- * - Uncommitted changes
+ * - Current branch and status (cached for performance)
+ * - Recent commit history with filtering
+ * - Uncommitted changes and diffs
  * - File history and blame information
+ * - Resource-managed git instances
+ *
+ * Features:
+ * - Automatic git instance caching and cleanup
+ * - Parallel git operations where safe
+ * - Comprehensive error handling
+ * - Request deduplication for concurrent calls
+ *
+ * @module git
+ * @version 2.0.0
  */
 import type { GitContext, GitCommit } from '../types.js';
 /**
- * Get comprehensive git context for a repository
+ * Get comprehensive git context for a repository with caching and deduplication
+ *
+ * @param repoPath - Repository path (will be validated)
+ * @param commitLimit - Number of commits to fetch (default: 10, max: 1000)
+ * @returns Git context or null if not a valid repository
+ *
+ * @example
+ * ```typescript
+ * const context = await getGitContext('/path/to/repo', 20);
+ * if (context) {
+ *   console.log(`Branch: ${context.currentBranch}`);
+ *   console.log(`Commits: ${context.recentCommits.length}`);
+ * }
+ * ```
  */
 export declare function getGitContext(repoPath: string, commitLimit?: number): Promise<GitContext | null>;
 /**

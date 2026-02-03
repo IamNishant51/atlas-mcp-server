@@ -2,91 +2,188 @@
  * Atlas Server - Git Context Tool
  *
  * Provides git repository context including:
- * - Current branch and status
- * - Recent commit history
- * - Uncommitted changes
+ * - Current branch and status (cached for performance)
+ * - Recent commit history with filtering
+ * - Uncommitted changes and diffs
  * - File history and blame information
+ * - Resource-managed git instances
+ *
+ * Features:
+ * - Automatic git instance caching and cleanup
+ * - Parallel git operations where safe
+ * - Comprehensive error handling
+ * - Request deduplication for concurrent calls
+ *
+ * @module git
+ * @version 2.0.0
  */
 import { simpleGit } from 'simple-git';
-import { logger, getErrorMessage } from '../utils.js';
+import { logger, getErrorMessage, LRUCache, RequestDeduplicator, globalMetrics } from '../utils.js';
+import { ManagedGitInstance, globalResourceManager } from './resource-manager.js';
 // ============================================================================
-// Configuration
+// Configuration and Caching
 // ============================================================================
+/** Default number of commits to fetch */
 const DEFAULT_COMMIT_LIMIT = 10;
-// Git instance cache to avoid creating new instances for the same repo
-const gitInstanceCache = new Map();
-const CACHE_TTL_MS = 60000; // 1 minute cache
-const MAX_CACHE_SIZE = 10;
+/** Maximum number of commits to fetch (prevents memory issues) */
+const MAX_COMMIT_LIMIT = 1000;
+/** Git operation timeout (30 seconds) */
+const GIT_TIMEOUT_MS = 30000;
+/** Cache TTL for git context (2 minutes) */
+const GIT_CONTEXT_CACHE_TTL = 120000;
+/** Cache size for git operations */
+const GIT_CACHE_SIZE = 50;
+/** Cache for git context results */
+const gitContextCache = new LRUCache(GIT_CACHE_SIZE, GIT_CONTEXT_CACHE_TTL);
+/** Deduplicator for concurrent git operations */
+const gitDeduplicator = new RequestDeduplicator();
+/** Cache for repository validation */
+const repoValidationCache = new LRUCache(100, 300000); // 5 min TTL
 /**
- * Get or create a cached git instance for a repository
+ * Get or create a resource-managed git instance for a repository
+ * Automatically registers for cleanup and lifecycle management
+ *
+ * @param repoPath - Repository path
+ * @returns SimpleGit instance
  */
 function getGitInstance(repoPath) {
-    const now = Date.now();
-    const cached = gitInstanceCache.get(repoPath);
-    if (cached) {
-        cached.lastAccess = now;
-        return cached.git;
+    const resourceId = `git:${repoPath}`;
+    // Check if already registered
+    const existing = globalResourceManager.get(resourceId);
+    if (existing) {
+        return existing.getGit();
     }
-    // Cleanup old entries if cache is full
-    if (gitInstanceCache.size >= MAX_CACHE_SIZE) {
-        const oldestKey = [...gitInstanceCache.entries()]
-            .sort((a, b) => a[1].lastAccess - b[1].lastAccess)[0]?.[0];
-        if (oldestKey)
-            gitInstanceCache.delete(oldestKey);
-    }
-    const git = simpleGit(repoPath);
-    gitInstanceCache.set(repoPath, { git, lastAccess: now });
+    // Create new instance and register it
+    const git = simpleGit({
+        baseDir: repoPath,
+        binary: 'git',
+        maxConcurrentProcesses: 6,
+        trimmed: false,
+    });
+    const managedGit = new ManagedGitInstance(repoPath, git);
+    globalResourceManager.register(managedGit);
     return git;
 }
 /**
- * Wrapper for git operations with consistent error handling
+ * Wrapper for git operations with consistent error handling and timeout
+ *
+ * @template T - Return type
+ * @param operation - Operation name for logging
+ * @param context - Context for logging
+ * @param fn - Async function to execute
+ * @param fallback - Fallback value if operation fails
+ * @param timeoutMs - Optional timeout in milliseconds
+ * @returns Result or fallback value
  */
-async function withGitErrorHandling(operation, context, fn, fallback) {
+async function withGitErrorHandling(operation, context, fn, fallback, timeoutMs = GIT_TIMEOUT_MS) {
     try {
-        return await fn();
+        // Add timeout to prevent hanging
+        const result = await Promise.race([
+            fn(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`Git operation timed out after ${timeoutMs}ms`)), timeoutMs)),
+        ]);
+        return result;
     }
     catch (error) {
-        logger.error({ error: getErrorMessage(error), ...context }, `Failed to ${operation}`);
+        const errorMsg = getErrorMessage(error);
+        logger.error({ error: errorMsg, ...context }, `Failed to ${operation}`);
         return fallback;
     }
 }
 // ============================================================================
-// Git Context
+// Git Context Retrieval (Enhanced)
 // ============================================================================
 /**
- * Get comprehensive git context for a repository
+ * Get comprehensive git context for a repository with caching and deduplication
+ *
+ * @param repoPath - Repository path (will be validated)
+ * @param commitLimit - Number of commits to fetch (default: 10, max: 1000)
+ * @returns Git context or null if not a valid repository
+ *
+ * @example
+ * ```typescript
+ * const context = await getGitContext('/path/to/repo', 20);
+ * if (context) {
+ *   console.log(`Branch: ${context.currentBranch}`);
+ *   console.log(`Commits: ${context.recentCommits.length}`);
+ * }
+ * ```
  */
 export async function getGitContext(repoPath, commitLimit = DEFAULT_COMMIT_LIMIT) {
-    return withGitErrorHandling('get git context', { repoPath }, async () => {
-        const git = getGitInstance(repoPath);
-        // Check if this is a git repository
+    // Input validation
+    if (!repoPath || typeof repoPath !== 'string') {
+        logger.warn('Invalid repoPath provided to getGitContext');
+        return null;
+    }
+    // Clamp commit limit to prevent excessive memory usage
+    const safeCommitLimit = Math.min(Math.max(1, commitLimit), MAX_COMMIT_LIMIT);
+    // Check cache first (with commit limit as part of key)
+    const cacheKey = `${repoPath}:${safeCommitLimit}`;
+    const cached = gitContextCache.get(cacheKey);
+    if (cached) {
+        logger.debug({ repoPath }, 'Using cached git context');
+        return cached;
+    }
+    // Deduplicate concurrent requests for same repo
+    return gitDeduplicator.execute(cacheKey, async () => {
+        return globalMetrics.measure('git_get_context', async () => {
+            const context = await withGitErrorHandling('get git context', { repoPath }, async () => {
+                const git = getGitInstance(repoPath);
+                // Check if this is a git repository (with caching)
+                const isRepo = await checkIsRepo(repoPath, git);
+                if (!isRepo) {
+                    logger.debug({ repoPath }, 'Not a git repository');
+                    return null;
+                }
+                // Gather all context in parallel for performance
+                const [branch, status, log, remotes] = await Promise.all([
+                    git.branch(),
+                    git.status(),
+                    git.log({ maxCount: safeCommitLimit }),
+                    git.getRemotes(true),
+                ]);
+                const context = {
+                    currentBranch: branch.current,
+                    recentCommits: formatCommits(log),
+                    uncommittedChanges: formatChanges(status),
+                    remoteUrl: remotes[0]?.refs?.fetch,
+                    isDirty: !status.isClean(),
+                };
+                logger.debug({
+                    branch: context.currentBranch,
+                    commits: context.recentCommits.length,
+                    changes: context.uncommittedChanges.length,
+                    isDirty: context.isDirty,
+                }, 'Git context retrieved');
+                // Cache the result
+                gitContextCache.set(cacheKey, context);
+                return context;
+            }, null);
+            return context;
+        }, { repoPath });
+    });
+}
+/**
+ * Check if directory is a git repository (with caching)
+ *
+ * @param repoPath - Repository path
+ * @param git - Git instance
+ * @returns True if valid git repository
+ */
+async function checkIsRepo(repoPath, git) {
+    const cached = repoValidationCache.get(repoPath);
+    if (cached !== undefined) {
+        return cached;
+    }
+    try {
         const isRepo = await git.checkIsRepo();
-        if (!isRepo) {
-            logger.debug({ repoPath }, 'Not a git repository');
-            return null;
-        }
-        // Gather all context in parallel
-        const [branch, status, log, remotes] = await Promise.all([
-            git.branch(),
-            git.status(),
-            git.log({ maxCount: commitLimit }),
-            git.getRemotes(true),
-        ]);
-        const context = {
-            currentBranch: branch.current,
-            recentCommits: formatCommits(log),
-            uncommittedChanges: formatChanges(status),
-            remoteUrl: remotes[0]?.refs?.fetch,
-            isDirty: !status.isClean(),
-        };
-        logger.debug({
-            branch: context.currentBranch,
-            commits: context.recentCommits.length,
-            changes: context.uncommittedChanges.length,
-            isDirty: context.isDirty,
-        }, 'Git context retrieved');
-        return context;
-    }, null);
+        repoValidationCache.set(repoPath, isRepo);
+        return isRepo;
+    }
+    catch {
+        repoValidationCache.set(repoPath, false);
+        return false;
+    }
 }
 /**
  * Get the diff for uncommitted changes
