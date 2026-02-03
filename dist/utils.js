@@ -2,29 +2,58 @@
  * Atlas Server - Utility Functions
  *
  * Shared utilities for logging, timing, error handling, and common operations.
+ *
+ * Features:
+ * - High-performance logging with MCP mode support
+ * - Circuit breaker pattern for resilient external calls
+ * - LRU cache with TTL for efficient memoization
+ * - Comprehensive retry logic with exponential backoff
+ * - Type-safe error handling utilities
+ *
+ * @module utils
+ * @version 2.0.0
  */
 import pino from 'pino';
 import { randomBytes } from 'crypto';
 // ============================================================================
+// Constants
+// ============================================================================
+/** Maximum safe integer for performance tracking */
+const MAX_DURATION_MS = Number.MAX_SAFE_INTEGER;
+/** Default concurrency limit for parallel operations */
+export const DEFAULT_CONCURRENCY = 3;
+// ============================================================================
 // Logger Configuration
 // ============================================================================
 /**
- * Check if running in MCP stdio mode (suppress pretty output)
+ * Detect if running in MCP stdio mode
+ * Multiple detection methods for reliability
  */
-const isMcpMode = process.argv[1]?.includes('mcp') || process.env['MCP_MODE'] === 'true';
+const isMcpMode = (() => {
+    const args = process.argv.join(' ').toLowerCase();
+    return args.includes('mcp') ||
+        process.env['MCP_MODE'] === 'true' ||
+        process.env['LOG_LEVEL'] === 'silent';
+})();
+/** Singleton logger instance */
+let _loggerInstance = null;
 /**
  * Create a configured pino logger instance
  * In MCP mode, we disable pretty printing to avoid polluting stdio
+ * @param level - Log level (debug, info, warn, error, silent)
  */
 export function createLogger(level = 'info') {
-    // In MCP mode, use silent or minimal logging to avoid interfering with stdio JSON
-    // AND force logging to stderr so it doesn't corrupt the JSON on stdout
+    // Return cached instance if available with same level
+    if (_loggerInstance)
+        return _loggerInstance;
+    // In MCP mode, use silent or minimal logging to stderr
     if (isMcpMode) {
-        return pino({
+        _loggerInstance = pino({
             level: process.env['LOG_LEVEL'] ?? 'silent',
         }, pino.destination(2));
+        return _loggerInstance;
     }
-    return pino({
+    _loggerInstance = pino({
         level,
         transport: {
             target: 'pino-pretty',
@@ -35,28 +64,41 @@ export function createLogger(level = 'info') {
             },
         },
     });
+    return _loggerInstance;
 }
-/** Default logger instance */
+/** Default logger instance (singleton) */
 export const logger = createLogger(process.env['LOG_LEVEL'] ?? 'info');
 // ============================================================================
 // Timing Utilities
 // ============================================================================
 /**
- * Measure execution time of an async function
+ * Measure execution time of an async function with high precision
+ * @template T - Return type of the function
+ * @param fn - Async function to measure
+ * @returns Result and duration in milliseconds
  */
 export async function measureTime(fn) {
     const start = performance.now();
-    const result = await fn();
-    const durationMs = Math.round(performance.now() - start);
-    return { result, durationMs };
+    try {
+        const result = await fn();
+        const durationMs = Math.min(Math.round(performance.now() - start), MAX_DURATION_MS);
+        return { result, durationMs };
+    }
+    catch (error) {
+        // Ensure timing is still recorded on error
+        const durationMs = Math.min(Math.round(performance.now() - start), MAX_DURATION_MS);
+        throw Object.assign(error instanceof Error ? error : new Error(String(error)), { durationMs });
+    }
 }
 /**
  * Create a simple timer for measuring elapsed time
+ * Useful for tracking duration across multiple operations
  */
 export function createTimer() {
-    const start = performance.now();
+    let start = performance.now();
     return {
-        elapsed: () => Math.round(performance.now() - start),
+        elapsed: () => Math.min(Math.round(performance.now() - start), MAX_DURATION_MS),
+        reset: () => { start = performance.now(); },
     };
 }
 /**
@@ -75,36 +117,62 @@ export function safeStringify(obj, indent = 2) {
     }, indent);
 }
 /**
- * Create a stage result with timing
+ * Create a stage result with timing, error handling, and optional retry
+ * @template T - Output type of the stage function
+ * @param name - Stage name for tracking
+ * @param fn - Async function to execute
+ * @param options - Optional configuration (retries, timeout)
+ * @returns Stage result with output or error
  */
-export async function executeStage(name, fn) {
+export async function executeStage(name, fn, options = {}) {
     const start = performance.now();
-    try {
-        const output = await fn();
-        const durationMs = Math.round(performance.now() - start);
-        return {
-            stageResult: {
-                name,
-                success: true,
-                durationMs,
+    let lastError = null;
+    let retryCount = 0;
+    const maxRetries = options.retries ?? 0;
+    while (retryCount <= maxRetries) {
+        try {
+            // Apply timeout if specified
+            const output = options.timeoutMs
+                ? await Promise.race([
+                    fn(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`Stage ${name} timed out after ${options.timeoutMs}ms`)), options.timeoutMs)),
+                ])
+                : await fn();
+            const durationMs = Math.round(performance.now() - start);
+            return {
+                stageResult: {
+                    name,
+                    success: true,
+                    durationMs,
+                    output,
+                    retries: retryCount > 0 ? retryCount : undefined,
+                },
                 output,
-            },
-            output,
-        };
+            };
+        }
+        catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            retryCount++;
+            if (retryCount <= maxRetries) {
+                logger.debug({ stage: name, retry: retryCount, maxRetries }, `Retrying stage ${name}`);
+                await sleep(Math.min(1000 * retryCount, 5000)); // Exponential backoff
+            }
+        }
     }
-    catch (error) {
-        const durationMs = Math.round(performance.now() - start);
-        logger.error({ stage: name, error }, `Stage ${name} failed`);
-        return {
-            stageResult: {
-                name,
-                success: false,
-                durationMs,
-                output: error instanceof Error ? error.message : 'Unknown error',
-            },
-            output: null,
-        };
-    }
+    const durationMs = Math.round(performance.now() - start);
+    const errorMessage = lastError?.message ?? 'Unknown error';
+    logger.error({ stage: name, error: errorMessage, retries: retryCount - 1 }, `Stage ${name} failed`);
+    return {
+        stageResult: {
+            name,
+            success: false,
+            durationMs,
+            output: undefined,
+            error: errorMessage,
+            retries: retryCount > 1 ? retryCount - 1 : undefined,
+        },
+        output: null,
+    };
 }
 // ============================================================================
 // Error Utilities
@@ -212,6 +280,71 @@ export async function retry(fn, options = {}) {
 export function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
+/**
+ * Circuit breaker for resilient external service calls
+ * Prevents cascade failures by failing fast when service is unavailable
+ */
+export class CircuitBreaker {
+    options;
+    state = 'closed';
+    failureCount = 0;
+    lastFailureTime = 0;
+    successCount = 0;
+    constructor(options = {
+        failureThreshold: 5,
+        resetTimeoutMs: 30000,
+        halfOpenSuccesses: 2,
+    }) {
+        this.options = options;
+    }
+    async execute(fn) {
+        if (this.state === 'open') {
+            if (Date.now() - this.lastFailureTime >= this.options.resetTimeoutMs) {
+                this.state = 'half-open';
+                this.successCount = 0;
+            }
+            else {
+                throw new Error('Circuit breaker is open - service unavailable');
+            }
+        }
+        try {
+            const result = await fn();
+            this.onSuccess();
+            return result;
+        }
+        catch (error) {
+            this.onFailure();
+            throw error;
+        }
+    }
+    onSuccess() {
+        if (this.state === 'half-open') {
+            this.successCount++;
+            if (this.successCount >= this.options.halfOpenSuccesses) {
+                this.state = 'closed';
+                this.failureCount = 0;
+            }
+        }
+        else {
+            this.failureCount = 0;
+        }
+    }
+    onFailure() {
+        this.failureCount++;
+        this.lastFailureTime = Date.now();
+        if (this.failureCount >= this.options.failureThreshold) {
+            this.state = 'open';
+        }
+    }
+    getState() {
+        return this.state;
+    }
+    reset() {
+        this.state = 'closed';
+        this.failureCount = 0;
+        this.successCount = 0;
+    }
+}
 // ============================================================================
 // JSON Utilities
 // ============================================================================
@@ -294,21 +427,45 @@ export function formatDuration(ms) {
 // Batch Processing Utilities
 // ============================================================================
 /**
- * Process items in parallel with concurrency limit
+ * Process items in parallel with concurrency limit and progress tracking
+ * @template T - Input item type
+ * @template R - Result type
+ * @param items - Array of items to process
+ * @param fn - Async function to apply to each item
+ * @param options - Configuration options
+ * @returns Array of results in original order
  */
-export async function parallelMap(items, fn, concurrency = 3) {
+export async function parallelMap(items, fn, options = {}) {
+    const { concurrency = DEFAULT_CONCURRENCY, onProgress, stopOnError = false } = options;
     const results = new Array(items.length);
+    const errors = [];
     let currentIndex = 0;
+    let completedCount = 0;
+    let shouldStop = false;
     async function runNext() {
-        while (currentIndex < items.length) {
+        while (currentIndex < items.length && !shouldStop) {
             const index = currentIndex++;
             const item = items[index];
-            results[index] = await fn(item, index);
+            try {
+                results[index] = await fn(item, index);
+            }
+            catch (error) {
+                errors.push({ index, error: error instanceof Error ? error : new Error(String(error)) });
+                if (stopOnError) {
+                    shouldStop = true;
+                    return;
+                }
+            }
+            completedCount++;
+            onProgress?.(completedCount, items.length);
         }
     }
     // Start up to 'concurrency' workers
     const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runNext());
     await Promise.all(workers);
+    if (errors.length > 0 && stopOnError) {
+        throw errors[0].error;
+    }
     return results;
 }
 /**
@@ -332,40 +489,117 @@ export function debounce(fn, delayMs) {
     };
 }
 /**
- * Memoize async function with TTL and automatic cleanup
+ * LRU Cache with TTL support for efficient memoization
+ * @template K - Key type
+ * @template V - Value type
  */
-export function memoizeAsync(fn, ttlMs = 60000, keyFn = (...args) => JSON.stringify(args), maxCacheSize = 100) {
-    const cache = new Map();
-    let lastCleanup = Date.now();
-    const cleanupInterval = Math.max(ttlMs, 30000); // Cleanup at least every 30s
-    function cleanup(now) {
-        if (now - lastCleanup < cleanupInterval && cache.size <= maxCacheSize)
-            return;
-        lastCleanup = now;
-        for (const [k, v] of cache) {
-            if (v.expiry <= now)
-                cache.delete(k);
+export class LRUCache {
+    maxSize;
+    ttlMs;
+    cache = new Map();
+    constructor(maxSize = 100, ttlMs = 60000) {
+        this.maxSize = maxSize;
+        this.ttlMs = ttlMs;
+    }
+    get(key) {
+        const now = Date.now();
+        const entry = this.cache.get(key);
+        if (!entry)
+            return undefined;
+        if (entry.expiry <= now) {
+            this.cache.delete(key);
+            return undefined;
         }
-        // If still over limit, remove oldest entries
-        if (cache.size > maxCacheSize) {
-            const entries = [...cache.entries()].sort((a, b) => a[1].expiry - b[1].expiry);
-            const toRemove = entries.slice(0, cache.size - maxCacheSize);
-            for (const [k] of toRemove)
-                cache.delete(k);
+        // Update access time for LRU
+        entry.accessTime = now;
+        return entry.value;
+    }
+    set(key, value, ttlMs) {
+        const now = Date.now();
+        // Evict if at capacity
+        if (this.cache.size >= this.maxSize) {
+            this.evictLRU();
+        }
+        this.cache.set(key, {
+            value,
+            expiry: now + (ttlMs ?? this.ttlMs),
+            accessTime: now,
+        });
+    }
+    has(key) {
+        return this.get(key) !== undefined;
+    }
+    delete(key) {
+        return this.cache.delete(key);
+    }
+    clear() {
+        this.cache.clear();
+    }
+    get size() {
+        return this.cache.size;
+    }
+    evictLRU() {
+        let oldestKey;
+        let oldestTime = Infinity;
+        const now = Date.now();
+        for (const [key, entry] of this.cache) {
+            // First, remove expired entries
+            if (entry.expiry <= now) {
+                this.cache.delete(key);
+                continue;
+            }
+            if (entry.accessTime < oldestTime) {
+                oldestTime = entry.accessTime;
+                oldestKey = key;
+            }
+        }
+        // If still at capacity, remove LRU entry
+        if (this.cache.size >= this.maxSize && oldestKey !== undefined) {
+            this.cache.delete(oldestKey);
         }
     }
-    return ((...args) => {
+    /** Get cache statistics */
+    getStats() {
+        return { size: this.cache.size, maxSize: this.maxSize };
+    }
+}
+/**
+ * Memoize async function with LRU cache and TTL
+ * @template T - Function type
+ * @param fn - Async function to memoize
+ * @param options - Cache configuration
+ * @returns Memoized function
+ */
+export function memoizeAsync(fn, options = {}) {
+    const { ttlMs = 60000, maxCacheSize = 100, keyFn = (...args) => JSON.stringify(args), } = options;
+    const cache = new LRUCache(maxCacheSize, ttlMs);
+    const pending = new Map();
+    const memoized = ((...args) => {
         const key = keyFn(...args);
-        const now = Date.now();
-        cleanup(now);
+        // Check cache first
         const cached = cache.get(key);
-        if (cached && cached.expiry > now) {
-            return Promise.resolve(cached.value);
+        if (cached !== undefined) {
+            return Promise.resolve(cached);
         }
-        return fn(...args).then((result) => {
-            cache.set(key, { value: result, expiry: now + ttlMs });
+        // Deduplicate concurrent calls with same key
+        const pendingCall = pending.get(key);
+        if (pendingCall) {
+            return pendingCall;
+        }
+        // Execute and cache
+        const promise = fn(...args).then((result) => {
+            cache.set(key, result);
+            pending.delete(key);
             return result;
+        }).catch((error) => {
+            pending.delete(key);
+            throw error;
         });
+        pending.set(key, promise);
+        return promise;
     });
+    memoized.cache = cache;
+    memoized.clearCache = () => cache.clear();
+    return memoized;
 }
 //# sourceMappingURL=utils.js.map

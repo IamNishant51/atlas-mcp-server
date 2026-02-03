@@ -7,7 +7,8 @@
  * - Priority and complexity estimates
  * - Suggested execution order
  */
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger } from '../utils.js';
 // ============================================================================
 // Configuration
@@ -66,34 +67,45 @@ function ruleBasedDecomposition(context) {
  * LLM-based decomposition for complex requests
  */
 async function llmDecomposition(context) {
-    const client = getOllamaClient();
-    const prompt = buildDecompositionPrompt(context);
-    const response = await client.generateJson(prompt, {
-        systemPrompt: PromptTemplates.taskDecomposition,
-        temperature: 0.4,
-    });
-    if (response.data) {
-        const tasks = response.data.tasks
-            .slice(0, MAX_TASKS)
-            .map((t, index) => ({
-            id: (index + 1).toString(),
-            description: t.description,
-            type: t.type,
-            priority: Math.min(5, Math.max(1, t.priority)),
-            dependencies: t.dependencies,
-            complexity: normalizeComplexity(t.complexity),
-            approach: t.approach,
-        }));
-        return {
-            summary: response.data.summary,
-            tasks,
-            executionOrder: calculateExecutionOrder(tasks),
-            overallComplexity: normalizeComplexity(response.data.overallComplexity),
-        };
+    // Check if we're in no-LLM mode - use fallback immediately
+    if (isNoLLMMode()) {
+        logger.debug('No LLM available, using fallback decomposition');
+        return fallbackDecomposition(context);
     }
-    // Fallback to simple decomposition
-    logger.warn('LLM decomposition failed, using fallback');
-    return fallbackDecomposition(context);
+    try {
+        const provider = await getActiveProvider();
+        const prompt = buildDecompositionPrompt(context);
+        const response = await provider.completeJson(prompt, {
+            systemPrompt: PromptTemplates.taskDecomposition,
+            temperature: 0.4,
+        });
+        if (response.data) {
+            const tasks = response.data.tasks
+                .slice(0, MAX_TASKS)
+                .map((t, index) => ({
+                id: (index + 1).toString(),
+                description: t.description,
+                type: t.type,
+                priority: Math.min(5, Math.max(1, t.priority)),
+                dependencies: t.dependencies,
+                complexity: normalizeComplexity(t.complexity),
+                approach: t.approach,
+            }));
+            return {
+                summary: response.data.summary,
+                tasks,
+                executionOrder: calculateExecutionOrder(tasks),
+                overallComplexity: normalizeComplexity(response.data.overallComplexity),
+            };
+        }
+        // Fallback to simple decomposition
+        logger.warn('LLM decomposition failed (no valid data), using fallback');
+        return fallbackDecomposition(context);
+    }
+    catch (error) {
+        logger.warn({ error }, 'LLM decomposition failed, using fallback');
+        return fallbackDecomposition(context);
+    }
 }
 /**
  * Build the decomposition prompt with context

@@ -6,16 +6,59 @@
  * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-4-turbo, GPT-3.5-turbo)
  * - Anthropic (Claude 3.5, Claude 3)
  *
- * Auto-detects available providers and falls back gracefully.
+ * Features:
+ * - Auto-detection of available providers
+ * - Graceful fallback chain
+ * - Request deduplication
+ * - Connection health monitoring
+ * - Circuit breaker protection
+ *
+ * @module llm-provider
+ * @version 2.0.0
  */
 import { Ollama } from 'ollama';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { logger, retry, getErrorMessage, extractJson } from '../utils.js';
+import { logger, retry, getErrorMessage, extractJson, CircuitBreaker } from '../utils.js';
+// ============================================================================
+// Constants
+// ============================================================================
+/** Default timeout for LLM requests */
+const DEFAULT_TIMEOUT_MS = 120000;
+/** Default max retries for failed requests */
+const DEFAULT_MAX_RETRIES = 3;
+/** Health check interval */
+const HEALTH_CHECK_INTERVAL_MS = 60000;
 // ============================================================================
 // Abstract Provider Interface
 // ============================================================================
+/**
+ * Abstract base class for LLM providers
+ * Implementations must provide availability check and completion methods
+ */
 export class LLMProvider {
+    /** Circuit breaker for resilience */
+    circuitBreaker = new CircuitBreaker({
+        failureThreshold: 3,
+        resetTimeoutMs: 30000,
+        halfOpenSuccesses: 1,
+    });
+    /** Last health check result */
+    lastHealthCheck = { healthy: false, timestamp: 0 };
+    /** Get provider health status */
+    getHealth() {
+        const state = this.circuitBreaker.getState();
+        if (state === 'open')
+            return 'unavailable';
+        if (state === 'half-open')
+            return 'degraded';
+        return 'healthy';
+    }
+    /** Reset provider state */
+    reset() {
+        this.circuitBreaker.reset();
+        this.lastHealthCheck = { healthy: false, timestamp: 0 };
+    }
 }
 // ============================================================================
 // Ollama Provider
@@ -25,23 +68,33 @@ class OllamaProvider extends LLMProvider {
     client;
     _model = '';
     initialized = false;
+    initPromise = null;
     baseUrl;
     maxRetries;
+    timeoutMs;
     constructor(config) {
         super();
         this.baseUrl = config.ollamaBaseUrl ?? 'http://localhost:11434';
         this.client = new Ollama({ host: this.baseUrl });
         this._model = config.ollamaModel ?? '';
-        this.maxRetries = config.maxRetries ?? 3;
+        this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+        this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     }
     get model() {
         return this._model || 'auto-detect';
     }
     async isAvailable() {
+        // Use cached result if recent
+        const now = Date.now();
+        if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+            return this.lastHealthCheck.healthy;
+        }
         try {
             const models = await this.client.list();
-            if (models.models.length === 0) {
+            const hasModels = models.models.length > 0;
+            if (!hasModels) {
                 logger.debug('Ollama running but no models installed');
+                this.lastHealthCheck = { healthy: false, timestamp: now };
                 return false;
             }
             // Auto-select model if not specified
@@ -51,17 +104,20 @@ class OllamaProvider extends LLMProvider {
             }
             else {
                 // Verify specified model exists
-                const exists = models.models.some(m => m.name.includes(this._model.split(':')[0]));
+                const modelBase = this._model.split(':')[0];
+                const exists = models.models.some(m => m.name.includes(modelBase));
                 if (!exists) {
                     this._model = models.models[0].name;
                     logger.warn({ fallback: this._model }, 'Ollama: specified model not found, using fallback');
                 }
             }
             this.initialized = true;
+            this.lastHealthCheck = { healthy: true, timestamp: now };
             return true;
         }
         catch {
             logger.debug('Ollama not available');
+            this.lastHealthCheck = { healthy: false, timestamp: now };
             return false;
         }
     }
@@ -69,32 +125,34 @@ class OllamaProvider extends LLMProvider {
         if (!this.initialized)
             await this.isAvailable();
         const startTime = performance.now();
-        const response = await retry(async () => {
-            const fullPrompt = options.systemPrompt
-                ? `${options.systemPrompt}\n\n${prompt}`
-                : prompt;
-            return await this.client.generate({
+        return this.circuitBreaker.execute(async () => {
+            const response = await retry(async () => {
+                const fullPrompt = options.systemPrompt
+                    ? `${options.systemPrompt}\n\n${prompt}`
+                    : prompt;
+                return await this.client.generate({
+                    model: this._model,
+                    prompt: fullPrompt,
+                    options: {
+                        temperature: options.temperature ?? 0.7,
+                        num_predict: options.maxTokens ?? 2048,
+                        stop: options.stop ? [...options.stop] : undefined,
+                    },
+                    stream: false,
+                });
+            }, { maxAttempts: this.maxRetries });
+            return {
+                text: response.response,
+                provider: 'ollama',
                 model: this._model,
-                prompt: fullPrompt,
-                options: {
-                    temperature: options.temperature ?? 0.7,
-                    num_predict: options.maxTokens ?? 2048,
-                    stop: options.stop,
+                usage: {
+                    promptTokens: response.prompt_eval_count ?? 0,
+                    completionTokens: response.eval_count ?? 0,
+                    totalTokens: (response.prompt_eval_count ?? 0) + (response.eval_count ?? 0),
                 },
-                stream: false,
-            });
-        }, { maxAttempts: this.maxRetries });
-        return {
-            text: response.response,
-            provider: 'ollama',
-            model: this._model,
-            usage: {
-                promptTokens: response.prompt_eval_count ?? 0,
-                completionTokens: response.eval_count ?? 0,
-                totalTokens: (response.prompt_eval_count ?? 0) + (response.eval_count ?? 0),
-            },
-            durationMs: Math.round(performance.now() - startTime),
-        };
+                durationMs: Math.round(performance.now() - startTime),
+            };
+        });
     }
     async completeJson(prompt, options = {}) {
         const jsonPrompt = `${prompt}\n\nIMPORTANT: Respond with valid JSON only. No markdown, no explanation.`;
@@ -110,20 +168,28 @@ class OpenAIProvider extends LLMProvider {
     client;
     _model;
     maxRetries;
+    timeoutMs;
     constructor(config) {
         super();
         this._model = config.openaiModel ?? 'gpt-5.2-codex';
-        this.maxRetries = config.maxRetries ?? 3;
+        this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+        this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         this.client = new OpenAI({
             apiKey: config.openaiApiKey,
             baseURL: config.openaiBaseUrl,
             maxRetries: this.maxRetries,
+            timeout: this.timeoutMs,
         });
     }
     get model() {
         return this._model;
     }
     async isAvailable() {
+        // Use cached result if recent
+        const now = Date.now();
+        if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+            return this.lastHealthCheck.healthy;
+        }
         try {
             // Quick test with minimal tokens
             await this.client.chat.completions.create({
@@ -131,40 +197,44 @@ class OpenAIProvider extends LLMProvider {
                 messages: [{ role: 'user', content: 'hi' }],
                 max_tokens: 5,
             });
+            this.lastHealthCheck = { healthy: true, timestamp: now };
             return true;
         }
         catch (error) {
             logger.debug({ error: getErrorMessage(error) }, 'OpenAI not available');
+            this.lastHealthCheck = { healthy: false, timestamp: now };
             return false;
         }
     }
     async complete(prompt, options = {}) {
         const startTime = performance.now();
-        const messages = [];
-        if (options.systemPrompt) {
-            messages.push({ role: 'system', content: options.systemPrompt });
-        }
-        messages.push({ role: 'user', content: prompt });
-        const response = await this.client.chat.completions.create({
-            model: this._model,
-            messages,
-            temperature: options.temperature ?? 0.7,
-            max_tokens: options.maxTokens ?? 2048,
-            stop: options.stop,
-            response_format: options.jsonMode ? { type: 'json_object' } : undefined,
+        return this.circuitBreaker.execute(async () => {
+            const messages = [];
+            if (options.systemPrompt) {
+                messages.push({ role: 'system', content: options.systemPrompt });
+            }
+            messages.push({ role: 'user', content: prompt });
+            const response = await this.client.chat.completions.create({
+                model: this._model,
+                messages,
+                temperature: options.temperature ?? 0.7,
+                max_tokens: options.maxTokens ?? 2048,
+                stop: options.stop ? [...options.stop] : undefined,
+                response_format: options.jsonMode ? { type: 'json_object' } : undefined,
+            });
+            const choice = response.choices[0];
+            return {
+                text: choice?.message?.content ?? '',
+                provider: 'openai',
+                model: this._model,
+                usage: response.usage ? {
+                    promptTokens: response.usage.prompt_tokens,
+                    completionTokens: response.usage.completion_tokens,
+                    totalTokens: response.usage.total_tokens,
+                } : undefined,
+                durationMs: Math.round(performance.now() - startTime),
+            };
         });
-        const choice = response.choices[0];
-        return {
-            text: choice?.message?.content ?? '',
-            provider: 'openai',
-            model: this._model,
-            usage: response.usage ? {
-                promptTokens: response.usage.prompt_tokens,
-                completionTokens: response.usage.completion_tokens,
-                totalTokens: response.usage.total_tokens,
-            } : undefined,
-            durationMs: Math.round(performance.now() - startTime),
-        };
     }
     async completeJson(prompt, options = {}) {
         const response = await this.complete(prompt, { ...options, jsonMode: true });
@@ -179,10 +249,12 @@ class AnthropicProvider extends LLMProvider {
     client;
     _model;
     maxRetries;
+    timeoutMs;
     constructor(config) {
         super();
         this._model = config.anthropicModel ?? 'claude-3-5-sonnet-20241022';
-        this.maxRetries = config.maxRetries ?? 3;
+        this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+        this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         this.client = new Anthropic({
             apiKey: config.anthropicApiKey,
             maxRetries: this.maxRetries,
@@ -192,40 +264,49 @@ class AnthropicProvider extends LLMProvider {
         return this._model;
     }
     async isAvailable() {
+        // Use cached result if recent
+        const now = Date.now();
+        if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+            return this.lastHealthCheck.healthy;
+        }
         try {
             await this.client.messages.create({
                 model: this._model,
                 max_tokens: 10,
                 messages: [{ role: 'user', content: 'hi' }],
             });
+            this.lastHealthCheck = { healthy: true, timestamp: now };
             return true;
         }
         catch (error) {
             logger.debug({ error: getErrorMessage(error) }, 'Anthropic not available');
+            this.lastHealthCheck = { healthy: false, timestamp: now };
             return false;
         }
     }
     async complete(prompt, options = {}) {
         const startTime = performance.now();
-        const response = await this.client.messages.create({
-            model: this._model,
-            max_tokens: options.maxTokens ?? 2048,
-            system: options.systemPrompt,
-            messages: [{ role: 'user', content: prompt }],
+        return this.circuitBreaker.execute(async () => {
+            const response = await this.client.messages.create({
+                model: this._model,
+                max_tokens: options.maxTokens ?? 2048,
+                system: options.systemPrompt,
+                messages: [{ role: 'user', content: prompt }],
+            });
+            const textBlock = response.content.find(block => block.type === 'text');
+            const text = textBlock && 'text' in textBlock ? textBlock.text : '';
+            return {
+                text,
+                provider: 'anthropic',
+                model: this._model,
+                usage: {
+                    promptTokens: response.usage.input_tokens,
+                    completionTokens: response.usage.output_tokens,
+                    totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+                },
+                durationMs: Math.round(performance.now() - startTime),
+            };
         });
-        const textBlock = response.content.find(block => block.type === 'text');
-        const text = textBlock && 'text' in textBlock ? textBlock.text : '';
-        return {
-            text,
-            provider: 'anthropic',
-            model: this._model,
-            usage: {
-                promptTokens: response.usage.input_tokens,
-                completionTokens: response.usage.output_tokens,
-                totalTokens: response.usage.input_tokens + response.usage.output_tokens,
-            },
-            durationMs: Math.round(performance.now() - startTime),
-        };
     }
     async completeJson(prompt, options = {}) {
         const jsonPrompt = `${prompt}\n\nIMPORTANT: Respond with valid JSON only. No markdown, no explanation.`;

@@ -12,7 +12,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { PipelineRequestSchema } from './types.js';
+import { PipelineRequestSchema, createSessionId } from './types.js';
 import { executePipeline, executeLightPipeline, getPipelineStatus } from './pipeline.js';
 import { getOllamaClient } from './tools/ollama.js';
 import { logger, generateId, nowISO } from './utils.js';
@@ -149,7 +149,7 @@ async function pipelineHandler(request, reply) {
     }
     const pipelineRequest = {
         ...parseResult.data,
-        sessionId: request.id,
+        sessionId: createSessionId(request.id),
     };
     request.log.info({
         queryLength: pipelineRequest.query.length,
@@ -187,7 +187,7 @@ async function lightPipelineHandler(request, reply) {
     }
     const pipelineRequest = {
         ...parseResult.data,
-        sessionId: request.id,
+        sessionId: createSessionId(request.id),
     };
     request.log.info({ mode: 'light' }, 'Light pipeline request received');
     // Execute light pipeline

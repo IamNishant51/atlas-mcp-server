@@ -8,7 +8,8 @@
  * - Security review
  * - Best practices check
  */
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger } from '../utils.js';
 // ============================================================================
 // Critique Generation
@@ -38,10 +39,10 @@ export async function critiqueVariants(variants) {
  * Critique a single variant
  */
 async function critiqueVariant(variant) {
-    const client = getOllamaClient();
+    const provider = await getActiveProvider();
     const prompt = buildCritiquePrompt(variant);
     try {
-        const response = await client.generateJson(prompt, {
+        const response = await provider.completeJson(prompt, {
             systemPrompt: PromptTemplates.codeCritique,
             temperature: 0.3, // Lower temp for analytical work
             maxTokens: 2048,

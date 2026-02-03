@@ -2,18 +2,34 @@
  * Atlas Server - Utility Functions
  *
  * Shared utilities for logging, timing, error handling, and common operations.
+ *
+ * Features:
+ * - High-performance logging with MCP mode support
+ * - Circuit breaker pattern for resilient external calls
+ * - LRU cache with TTL for efficient memoization
+ * - Comprehensive retry logic with exponential backoff
+ * - Type-safe error handling utilities
+ *
+ * @module utils
+ * @version 2.0.0
  */
 import pino from 'pino';
 import type { PipelineError, StageName, StageResult } from './types.js';
+/** Default concurrency limit for parallel operations */
+export declare const DEFAULT_CONCURRENCY = 3;
 /**
  * Create a configured pino logger instance
  * In MCP mode, we disable pretty printing to avoid polluting stdio
+ * @param level - Log level (debug, info, warn, error, silent)
  */
-export declare function createLogger(level?: string): pino.Logger<never, boolean>;
-/** Default logger instance */
+export declare function createLogger(level?: string): pino.Logger;
+/** Default logger instance (singleton) */
 export declare const logger: pino.Logger<never, boolean>;
 /**
- * Measure execution time of an async function
+ * Measure execution time of an async function with high precision
+ * @template T - Return type of the function
+ * @param fn - Async function to measure
+ * @returns Result and duration in milliseconds
  */
 export declare function measureTime<T>(fn: () => Promise<T>): Promise<{
     result: T;
@@ -21,19 +37,29 @@ export declare function measureTime<T>(fn: () => Promise<T>): Promise<{
 }>;
 /**
  * Create a simple timer for measuring elapsed time
+ * Useful for tracking duration across multiple operations
  */
 export declare function createTimer(): {
     elapsed: () => number;
+    reset: () => void;
 };
 /**
  * Safely stringify an object, handling circular references
  */
 export declare function safeStringify(obj: unknown, indent?: number): string;
 /**
- * Create a stage result with timing
+ * Create a stage result with timing, error handling, and optional retry
+ * @template T - Output type of the stage function
+ * @param name - Stage name for tracking
+ * @param fn - Async function to execute
+ * @param options - Optional configuration (retries, timeout)
+ * @returns Stage result with output or error
  */
-export declare function executeStage<T>(name: StageName, fn: () => Promise<T>): Promise<{
-    stageResult: StageResult;
+export declare function executeStage<T>(name: StageName, fn: () => Promise<T>, options?: {
+    retries?: number;
+    timeoutMs?: number;
+}): Promise<{
+    stageResult: StageResult<T>;
     output: T;
 }>;
 /**
@@ -86,6 +112,31 @@ export declare function retry<T>(fn: () => Promise<T>, options?: Partial<RetryOp
  */
 export declare function sleep(ms: number): Promise<void>;
 /**
+ * Circuit breaker states
+ */
+type CircuitState = 'closed' | 'open' | 'half-open';
+/**
+ * Circuit breaker for resilient external service calls
+ * Prevents cascade failures by failing fast when service is unavailable
+ */
+export declare class CircuitBreaker {
+    private readonly options;
+    private state;
+    private failureCount;
+    private lastFailureTime;
+    private successCount;
+    constructor(options?: {
+        failureThreshold: number;
+        resetTimeoutMs: number;
+        halfOpenSuccesses: number;
+    });
+    execute<T>(fn: () => Promise<T>): Promise<T>;
+    private onSuccess;
+    private onFailure;
+    getState(): CircuitState;
+    reset(): void;
+}
+/**
  * Safely parse JSON with error handling
  */
 export declare function safeJsonParse<T>(text: string): {
@@ -116,15 +167,60 @@ export declare function nowISO(): string;
  */
 export declare function formatDuration(ms: number): string;
 /**
- * Process items in parallel with concurrency limit
+ * Process items in parallel with concurrency limit and progress tracking
+ * @template T - Input item type
+ * @template R - Result type
+ * @param items - Array of items to process
+ * @param fn - Async function to apply to each item
+ * @param options - Configuration options
+ * @returns Array of results in original order
  */
-export declare function parallelMap<T, R>(items: T[], fn: (item: T, index: number) => Promise<R>, concurrency?: number): Promise<R[]>;
+export declare function parallelMap<T, R>(items: T[], fn: (item: T, index: number) => Promise<R>, options?: {
+    concurrency?: number;
+    onProgress?: (completed: number, total: number) => void;
+    stopOnError?: boolean;
+}): Promise<R[]>;
 /**
  * Debounce async function calls
  */
 export declare function debounce<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, delayMs: number): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
 /**
- * Memoize async function with TTL and automatic cleanup
+ * LRU Cache with TTL support for efficient memoization
+ * @template K - Key type
+ * @template V - Value type
  */
-export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, ttlMs?: number, keyFn?: (...args: Parameters<T>) => string, maxCacheSize?: number): T;
+export declare class LRUCache<K, V> {
+    private readonly maxSize;
+    private readonly ttlMs;
+    private cache;
+    constructor(maxSize?: number, ttlMs?: number);
+    get(key: K): V | undefined;
+    set(key: K, value: V, ttlMs?: number): void;
+    has(key: K): boolean;
+    delete(key: K): boolean;
+    clear(): void;
+    get size(): number;
+    private evictLRU;
+    /** Get cache statistics */
+    getStats(): {
+        size: number;
+        maxSize: number;
+    };
+}
+/**
+ * Memoize async function with LRU cache and TTL
+ * @template T - Function type
+ * @param fn - Async function to memoize
+ * @param options - Cache configuration
+ * @returns Memoized function
+ */
+export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, options?: {
+    ttlMs?: number;
+    maxCacheSize?: number;
+    keyFn?: (...args: Parameters<T>) => string;
+}): T & {
+    cache: LRUCache<string, Awaited<ReturnType<T>>>;
+    clearCache: () => void;
+};
+export {};
 //# sourceMappingURL=utils.d.ts.map

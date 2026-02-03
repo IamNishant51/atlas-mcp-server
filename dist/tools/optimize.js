@@ -7,7 +7,8 @@
  * - Enhances readability and maintainability
  * - Follows best practices
  */
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger } from '../utils.js';
 // ============================================================================
 // Optimization
@@ -25,10 +26,24 @@ export async function optimizeVariant(variant, critique) {
     if (critique.qualityScore >= 90 && !hasCriticalIssues(critique)) {
         return createMinimalOptimization(variant, critique);
     }
+    // Check if we're in no-LLM mode - return delegation fallback
+    if (isNoLLMMode()) {
+        logger.debug('No LLM available, returning optimization delegation fallback');
+        return {
+            content: variant.content,
+            optimizationsApplied: [{
+                    type: 'best_practice',
+                    description: 'Optimization Delegation: AI Assistant to perform changes',
+                    impact: 'high',
+                }],
+            finalMetrics: critique.assessment,
+            explanation: `Optimization Strategy: Manual Application.\n\nBased on the analysis, please apply the following improvements to the code:\n${critique.issues.map(i => `- [${i.severity}] ${i.description}`).join('\n')}`,
+        };
+    }
     try {
-        const client = getOllamaClient();
+        const provider = await getActiveProvider();
         const prompt = buildOptimizationPrompt(variant, critique);
-        const response = await client.generateJson(prompt, {
+        const response = await provider.completeJson(prompt, {
             systemPrompt: PromptTemplates.optimization,
             temperature: 0.4,
             maxTokens: 4096,

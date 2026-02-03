@@ -14,7 +14,8 @@ import type {
   DecompositionResult,
   TaskType,
 } from '../types.js';
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger, generateId, extractJson } from '../utils.js';
 
 // ============================================================================
@@ -108,25 +109,31 @@ function ruleBasedDecomposition(context: PipelineContext): DecompositionResult {
 async function llmDecomposition(
   context: PipelineContext
 ): Promise<DecompositionResult> {
-  const client = getOllamaClient();
+  // Check if we're in no-LLM mode - use fallback immediately
+  if (isNoLLMMode()) {
+    logger.debug('No LLM available, using fallback decomposition');
+    return fallbackDecomposition(context);
+  }
 
-  const prompt = buildDecompositionPrompt(context);
+  try {
+    const provider = await getActiveProvider();
+    const prompt = buildDecompositionPrompt(context);
 
-  const response = await client.generateJson<{
-    summary: string;
-    tasks: Array<{
-      description: string;
-      type: TaskType;
-      priority: number;
-      complexity: string;
-      dependencies: string[];
-      approach?: string;
-    }>;
-    overallComplexity: string;
-  }>(prompt, {
-    systemPrompt: PromptTemplates.taskDecomposition,
-    temperature: 0.4,
-  });
+    const response = await provider.completeJson<{
+      summary: string;
+      tasks: Array<{
+        description: string;
+        type: TaskType;
+        priority: number;
+        complexity: string;
+        dependencies: string[];
+        approach?: string;
+      }>;
+      overallComplexity: string;
+    }>(prompt, {
+      systemPrompt: PromptTemplates.taskDecomposition,
+      temperature: 0.4,
+    });
 
   if (response.data) {
     const tasks = response.data.tasks
@@ -150,8 +157,12 @@ async function llmDecomposition(
   }
 
   // Fallback to simple decomposition
-  logger.warn('LLM decomposition failed, using fallback');
+  logger.warn('LLM decomposition failed (no valid data), using fallback');
   return fallbackDecomposition(context);
+  } catch (error) {
+    logger.warn({ error }, 'LLM decomposition failed, using fallback');
+    return fallbackDecomposition(context);
+  }
 }
 
 /**

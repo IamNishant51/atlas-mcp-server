@@ -11,9 +11,12 @@
 import type { 
   IntentAnalysis, 
   IntentType, 
-  ExtractedEntity 
+  ExtractedEntity,
+  Confidence,
 } from '../types.js';
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { createConfidence } from '../types.js';
+import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger, generateId } from '../utils.js';
 
 // ============================================================================
@@ -175,7 +178,7 @@ function heuristicAnalysis(query: string): IntentAnalysis {
 function createUnknownIntent(query: string): IntentAnalysis {
   return {
     primaryIntent: 'unknown',
-    confidence: 0.1,
+    confidence: createConfidence(0.1),
     entities: [],
     keywords: extractKeywords(query),
     requiresClarification: true,
@@ -190,9 +193,16 @@ async function llmIntentAnalysis(
   query: string,
   heuristicResult: IntentAnalysis
 ): Promise<IntentAnalysis> {
-  const client = getOllamaClient();
+  // Check if we're in no-LLM mode - return heuristic result
+  if (isNoLLMMode()) {
+    logger.debug('No LLM available, using heuristic result for intent analysis');
+    return heuristicResult;
+  }
 
-  const prompt = `Analyze this developer query and extract intent information.
+  try {
+    const provider = await getActiveProvider();
+
+    const prompt = `Analyze this developer query and extract intent information.
 
 Query: "${query}"
 
@@ -210,30 +220,34 @@ Provide a JSON response with:
   "clarifyingQuestions": ["question 1", "question 2"] // only if requiresClarification is true
 }`;
 
-  const response = await client.generateJson<{
-    primaryIntent: IntentType;
-    confidence: number;
-    keywords: string[];
-    requiresClarification: boolean;
-    clarifyingQuestions?: string[];
-  }>(prompt, {
-    systemPrompt: PromptTemplates.intentAnalysis,
-    temperature: 0.3,
-  });
+    const response = await provider.completeJson<{
+      primaryIntent: IntentType;
+      confidence: number;
+      keywords: string[];
+      requiresClarification: boolean;
+      clarifyingQuestions?: string[];
+    }>(prompt, {
+      systemPrompt: PromptTemplates.intentAnalysis,
+      temperature: 0.3,
+    });
 
-  if (response.data) {
-    return {
-      primaryIntent: response.data.primaryIntent,
-      confidence: Math.min(1, Math.max(0, response.data.confidence)),
-      entities: heuristicResult.entities, // Keep heuristic entities
-      keywords: response.data.keywords || heuristicResult.keywords,
-      requiresClarification: response.data.requiresClarification,
-      clarifyingQuestions: response.data.clarifyingQuestions,
-    };
+    if (response.data) {
+      return {
+        primaryIntent: response.data.primaryIntent,
+        confidence: createConfidence(Math.min(1, Math.max(0, response.data.confidence))),
+        entities: heuristicResult.entities, // Keep heuristic entities
+        keywords: response.data.keywords || heuristicResult.keywords,
+        requiresClarification: response.data.requiresClarification,
+        clarifyingQuestions: response.data.clarifyingQuestions,
+      };
+    }
+
+    // Fallback to heuristic if parsing failed
+    return heuristicResult;
+  } catch (error) {
+    logger.warn({ error }, 'LLM intent analysis failed, using heuristic result');
+    return heuristicResult;
   }
-
-  // Fallback to heuristic if parsing failed
-  return heuristicResult;
 }
 
 /**
@@ -288,7 +302,7 @@ function calculateConfidence(
   hasKeywordMatch: boolean,
   hasEntities: boolean,
   keywordScore: number
-): number {
+): Confidence {
   let confidence = 0.3; // Base confidence
 
   if (hasKeywordMatch) {
@@ -299,7 +313,7 @@ function calculateConfidence(
     confidence += 0.2;
   }
 
-  return Math.min(1, confidence);
+  return createConfidence(Math.min(1, confidence));
 }
 
 /**

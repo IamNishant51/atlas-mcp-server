@@ -336,7 +336,7 @@ async function findFile(rootPath: string, fileName: string): Promise<string | nu
  */
 async function scanForRelevantFiles(
   rootPath: string,
-  keywords: string[],
+  keywords: readonly string[],
   maxFiles: number
 ): Promise<string[]> {
   const files: Array<{ path: string; score: number }> = [];
@@ -387,7 +387,7 @@ function detectLanguage(filePath: string): string {
 /**
  * Calculate relevance score based on keyword matches
  */
-function calculateRelevance(content: string, keywords: string[]): number {
+function calculateRelevance(content: string, keywords: readonly string[]): number {
   if (keywords.length === 0) return 0.5;
 
   const lowerContent = content.toLowerCase();

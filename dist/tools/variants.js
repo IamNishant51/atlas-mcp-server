@@ -7,7 +7,8 @@
  * - Use case recommendations
  * - Diversity in implementation strategies
  */
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger, generateId } from '../utils.js';
 // ============================================================================
 // Configuration
@@ -22,35 +23,46 @@ const VARIANT_LABELS = ['A', 'B', 'C', 'D', 'E'];
  */
 export async function generateVariants(context, decomposition, variantCount = DEFAULT_VARIANT_COUNT) {
     logger.debug({ taskCount: decomposition.tasks.length, variantCount }, 'Starting variant generation');
-    const client = getOllamaClient();
-    const prompt = buildVariantPrompt(context, decomposition, variantCount);
-    const response = await client.generateJson(prompt, {
-        systemPrompt: PromptTemplates.variantGeneration,
-        temperature: 0.7, // Higher temp for creative diversity
-        maxTokens: 4096,
-    });
-    if (response.data) {
-        const variants = response.data.variants.map((v, index) => ({
-            id: generateId(),
-            label: VARIANT_LABELS[index] ?? `V${index + 1}`,
-            content: v.content,
-            approach: v.approach,
-            tradeoffs: {
-                pros: v.pros,
-                cons: v.cons,
-            },
-            useCase: v.useCase,
-        }));
-        const recommendedIndex = Math.min(Math.max(0, response.data.recommendedIndex), variants.length - 1);
-        return {
-            variants,
-            recommendedVariantId: variants[recommendedIndex]?.id ?? variants[0]?.id ?? '',
-            recommendationReason: response.data.recommendationReason,
-        };
+    // Check if we're in no-LLM mode - use fallback immediately
+    if (isNoLLMMode()) {
+        logger.debug('No LLM available, using fallback variant generation');
+        return fallbackVariant(context, decomposition);
     }
-    // Fallback: generate single variant
-    logger.warn('Variant generation failed, using fallback');
-    return fallbackVariant(context, decomposition);
+    try {
+        const provider = await getActiveProvider();
+        const prompt = buildVariantPrompt(context, decomposition, variantCount);
+        const response = await provider.completeJson(prompt, {
+            systemPrompt: PromptTemplates.variantGeneration,
+            temperature: 0.7, // Higher temp for creative diversity
+            maxTokens: 4096,
+        });
+        if (response.data) {
+            const variants = response.data.variants.map((v, index) => ({
+                id: generateId(),
+                label: VARIANT_LABELS[index] ?? `V${index + 1}`,
+                content: v.content,
+                approach: v.approach,
+                tradeoffs: {
+                    pros: v.pros,
+                    cons: v.cons,
+                },
+                useCase: v.useCase,
+            }));
+            const recommendedIndex = Math.min(Math.max(0, response.data.recommendedIndex), variants.length - 1);
+            return {
+                variants,
+                recommendedVariantId: variants[recommendedIndex]?.id ?? variants[0]?.id ?? '',
+                recommendationReason: response.data.recommendationReason,
+            };
+        }
+        // Fallback: generate single variant
+        logger.warn('Variant generation failed (no valid data), using fallback');
+        return fallbackVariant(context, decomposition);
+    }
+    catch (error) {
+        logger.warn({ error }, 'Variant generation failed, using fallback');
+        return fallbackVariant(context, decomposition);
+    }
 }
 /**
  * Build the variant generation prompt

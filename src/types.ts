@@ -3,9 +3,56 @@
  * 
  * This module defines all shared interfaces and types used across the
  * multi-stage AI pipeline. Types are organized by domain concern.
+ * 
+ * Design Principles:
+ * - Branded types for domain-specific values (IDs, scores)
+ * - Strict readonly types where mutation is not expected
+ * - Comprehensive Zod schemas for runtime validation
+ * - Type guards for safe narrowing
+ * 
+ * @module types
+ * @version 2.0.0
  */
 
 import { z } from 'zod';
+
+// ============================================================================
+// Branded Types for Type Safety
+// ============================================================================
+
+/** Brand type for creating nominal types */
+declare const brand: unique symbol;
+type Brand<T, B> = T & { readonly [brand]: B };
+
+/** Branded type for variant IDs */
+export type VariantId = Brand<string, 'VariantId'>;
+
+/** Branded type for task IDs */
+export type TaskId = Brand<string, 'TaskId'>;
+
+/** Branded type for session IDs */
+export type SessionId = Brand<string, 'SessionId'>;
+
+/** Score between 0 and 100 */
+export type Score = Brand<number, 'Score'>;
+
+/** Confidence value between 0 and 1 */
+export type Confidence = Brand<number, 'Confidence'>;
+
+/** Helper to create a Score (clamped 0-100) */
+export function createScore(value: number): Score {
+  return Math.max(0, Math.min(100, Math.round(value))) as Score;
+}
+
+/** Helper to create a Confidence (clamped 0-1) */
+export function createConfidence(value: number): Confidence {
+  return Math.max(0, Math.min(1, value)) as Confidence;
+}
+
+/** Helper to create a SessionId */
+export function createSessionId(value: string): SessionId {
+  return value as SessionId;
+}
 
 // ============================================================================
 // Core Pipeline Types
@@ -13,16 +60,21 @@ import { z } from 'zod';
 
 /**
  * Represents the user's original request to the pipeline
+ * @immutable - Should not be mutated after creation
  */
 export interface PipelineRequest {
   /** The raw user query or instruction */
-  query: string;
+  readonly query: string;
   /** Optional repository path for git operations */
-  repoPath?: string;
+  readonly repoPath?: string;
   /** Additional context provided by the user */
-  userContext?: Record<string, unknown>;
+  readonly userContext?: Readonly<Record<string, unknown>>;
   /** Session identifier for tracking */
-  sessionId?: string;
+  readonly sessionId?: SessionId;
+  /** Request timestamp for metrics */
+  readonly timestamp?: string;
+  /** Request priority (affects queue ordering) */
+  readonly priority?: 'low' | 'normal' | 'high';
 }
 
 /**
@@ -41,32 +93,49 @@ export interface PipelineResponse {
 
 /**
  * Metadata collected during pipeline execution
+ * @immutable - Frozen after pipeline completion
  */
 export interface PipelineMetadata {
   /** Total execution time in milliseconds */
-  executionTimeMs: number;
+  readonly executionTimeMs: number;
   /** Results from each pipeline stage */
-  stages: StageResult[];
+  readonly stages: readonly StageResult[];
   /** The model used for generation */
-  model: string;
+  readonly model: string;
+  /** Provider used (ollama, openai, anthropic, auto) */
+  readonly provider?: string;
   /** Timestamp when processing started */
-  startedAt: string;
+  readonly startedAt: string;
   /** Timestamp when processing completed */
-  completedAt: string;
+  readonly completedAt: string;
+  /** Total tokens used (if available) */
+  readonly tokensUsed?: {
+    readonly prompt: number;
+    readonly completion: number;
+    readonly total: number;
+  };
+  /** Cache hit information */
+  readonly cacheHits?: number;
 }
 
 /**
  * Result from a single pipeline stage
  */
-export interface StageResult {
+export interface StageResult<T = unknown> {
   /** Name of the stage */
-  name: StageName;
+  readonly name: StageName;
   /** Whether this stage succeeded */
-  success: boolean;
+  readonly success: boolean;
   /** Execution time for this stage in milliseconds */
-  durationMs: number;
+  readonly durationMs: number;
   /** Optional output data from the stage */
-  output?: unknown;
+  readonly output?: T;
+  /** Error message if stage failed */
+  readonly error?: string;
+  /** Whether result came from cache */
+  readonly cached?: boolean;
+  /** Retry count if retries were needed */
+  readonly retries?: number;
 }
 
 /**
@@ -104,17 +173,21 @@ export interface PipelineError {
  */
 export interface IntentAnalysis {
   /** Primary intent category */
-  primaryIntent: IntentType;
+  readonly primaryIntent: IntentType;
+  /** Secondary intent if detected */
+  readonly secondaryIntent?: IntentType;
   /** Confidence score from 0 to 1 */
-  confidence: number;
+  readonly confidence: Confidence;
   /** Extracted entities from the query */
-  entities: ExtractedEntity[];
+  readonly entities: readonly ExtractedEntity[];
   /** Keywords identified in the query */
-  keywords: string[];
+  readonly keywords: readonly string[];
   /** Whether the query requires clarification */
-  requiresClarification: boolean;
+  readonly requiresClarification: boolean;
   /** Suggested clarifying questions if needed */
-  clarifyingQuestions?: string[];
+  readonly clarifyingQuestions?: readonly string[];
+  /** Raw query for reference */
+  readonly rawQuery?: string;
 }
 
 /**

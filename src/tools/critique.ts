@@ -16,7 +16,8 @@ import type {
   CritiqueAssessment,
   CritiqueIssue,
 } from '../types.js';
-import { getOllamaClient, PromptTemplates } from './ollama.js';
+import { getActiveProvider } from '../providers/index.js';
+import { PromptTemplates } from './ollama.js';
 import { logger, generateId } from '../utils.js';
 
 // ============================================================================
@@ -59,12 +60,12 @@ export async function critiqueVariants(
  * Critique a single variant
  */
 async function critiqueVariant(variant: SolutionVariant): Promise<Critique> {
-  const client = getOllamaClient();
+  const provider = await getActiveProvider();
 
   const prompt = buildCritiquePrompt(variant);
 
   try {
-    const response = await client.generateJson<{
+    const response = await provider.completeJson<{
       assessment: {
         correctness: number;
         performance: number;

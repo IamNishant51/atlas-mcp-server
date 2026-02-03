@@ -6,72 +6,135 @@
  * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-4-turbo, GPT-3.5-turbo)
  * - Anthropic (Claude 3.5, Claude 3)
  * 
- * Auto-detects available providers and falls back gracefully.
+ * Features:
+ * - Auto-detection of available providers
+ * - Graceful fallback chain
+ * - Request deduplication
+ * - Connection health monitoring
+ * - Circuit breaker protection
+ * 
+ * @module llm-provider
+ * @version 2.0.0
  */
 
 import { Ollama } from 'ollama';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { logger, retry, getErrorMessage, extractJson } from '../utils.js';
+import { logger, retry, getErrorMessage, extractJson, CircuitBreaker } from '../utils.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Default timeout for LLM requests */
+const DEFAULT_TIMEOUT_MS = 120000;
+
+/** Default max retries for failed requests */
+const DEFAULT_MAX_RETRIES = 3;
+
+/** Health check interval */
+const HEALTH_CHECK_INTERVAL_MS = 60000;
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type ProviderType = 'ollama' | 'openai' | 'anthropic' | 'auto';
+export type ProviderType = 'ollama' | 'openai' | 'anthropic' | 'auto' | 'none';
+
+/** Provider health status */
+export type ProviderHealth = 'healthy' | 'degraded' | 'unavailable';
 
 export interface ProviderConfig {
-  type: ProviderType;
+  readonly type: ProviderType;
   
   // Ollama config
-  ollamaBaseUrl?: string;
-  ollamaModel?: string;
+  readonly ollamaBaseUrl?: string;
+  readonly ollamaModel?: string;
   
   // OpenAI config
-  openaiApiKey?: string;
-  openaiModel?: string;
-  openaiBaseUrl?: string; // For Azure or compatible APIs
+  readonly openaiApiKey?: string;
+  readonly openaiModel?: string;
+  readonly openaiBaseUrl?: string; // For Azure or compatible APIs
   
   // Anthropic config
-  anthropicApiKey?: string;
-  anthropicModel?: string;
+  readonly anthropicApiKey?: string;
+  readonly anthropicModel?: string;
   
   // Common settings
-  maxRetries?: number;
-  timeoutMs?: number;
+  readonly maxRetries?: number;
+  readonly timeoutMs?: number;
 }
 
 export interface CompletionOptions {
-  systemPrompt?: string;
-  temperature?: number;
-  maxTokens?: number;
-  stop?: string[];
-  jsonMode?: boolean;
+  readonly systemPrompt?: string;
+  readonly temperature?: number;
+  readonly maxTokens?: number;
+  readonly stop?: readonly string[];
+  readonly jsonMode?: boolean;
+  /** Request timeout override */
+  readonly timeoutMs?: number;
+  /** Request ID for deduplication */
+  readonly requestId?: string;
 }
 
 export interface CompletionResponse {
-  text: string;
-  provider: ProviderType;
-  model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
+  readonly text: string;
+  readonly provider: ProviderType;
+  readonly model: string;
+  readonly usage?: {
+    readonly promptTokens: number;
+    readonly completionTokens: number;
+    readonly totalTokens: number;
   };
-  durationMs: number;
+  readonly durationMs: number;
+  /** Whether this was a cached response */
+  readonly cached?: boolean;
 }
 
 // ============================================================================
 // Abstract Provider Interface
 // ============================================================================
 
+/**
+ * Abstract base class for LLM providers
+ * Implementations must provide availability check and completion methods
+ */
 export abstract class LLMProvider {
   abstract readonly type: ProviderType;
   abstract readonly model: string;
   
+  /** Circuit breaker for resilience */
+  protected readonly circuitBreaker = new CircuitBreaker({
+    failureThreshold: 3,
+    resetTimeoutMs: 30000,
+    halfOpenSuccesses: 1,
+  });
+  
+  /** Last health check result */
+  protected lastHealthCheck: { healthy: boolean; timestamp: number } = { healthy: false, timestamp: 0 };
+  
+  /** Check if provider is available */
   abstract isAvailable(): Promise<boolean>;
+  
+  /** Generate a completion */
   abstract complete(prompt: string, options?: CompletionOptions): Promise<CompletionResponse>;
+  
+  /** Generate a JSON completion */
   abstract completeJson<T>(prompt: string, options?: CompletionOptions): Promise<{ data: T | null; raw: string }>;
+  
+  /** Get provider health status */
+  getHealth(): ProviderHealth {
+    const state = this.circuitBreaker.getState();
+    if (state === 'open') return 'unavailable';
+    if (state === 'half-open') return 'degraded';
+    return 'healthy';
+  }
+  
+  /** Reset provider state */
+  reset(): void {
+    this.circuitBreaker.reset();
+    this.lastHealthCheck = { healthy: false, timestamp: 0 };
+  }
 }
 
 // ============================================================================
@@ -83,15 +146,18 @@ class OllamaProvider extends LLMProvider {
   private client: Ollama;
   private _model: string = '';
   private initialized = false;
-  private baseUrl: string;
-  private maxRetries: number;
+  private initPromise: Promise<void> | null = null;
+  private readonly baseUrl: string;
+  private readonly maxRetries: number;
+  private readonly timeoutMs: number;
 
   constructor(config: ProviderConfig) {
     super();
     this.baseUrl = config.ollamaBaseUrl ?? 'http://localhost:11434';
     this.client = new Ollama({ host: this.baseUrl });
     this._model = config.ollamaModel ?? '';
-    this.maxRetries = config.maxRetries ?? 3;
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
   get model(): string {
@@ -99,10 +165,19 @@ class OllamaProvider extends LLMProvider {
   }
 
   async isAvailable(): Promise<boolean> {
+    // Use cached result if recent
+    const now = Date.now();
+    if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+      return this.lastHealthCheck.healthy;
+    }
+    
     try {
       const models = await this.client.list();
-      if (models.models.length === 0) {
+      const hasModels = models.models.length > 0;
+      
+      if (!hasModels) {
         logger.debug('Ollama running but no models installed');
+        this.lastHealthCheck = { healthy: false, timestamp: now };
         return false;
       }
       
@@ -112,7 +187,8 @@ class OllamaProvider extends LLMProvider {
         logger.info({ model: this._model }, 'Ollama: auto-selected model');
       } else {
         // Verify specified model exists
-        const exists = models.models.some(m => m.name.includes(this._model.split(':')[0]!));
+        const modelBase = this._model.split(':')[0]!;
+        const exists = models.models.some(m => m.name.includes(modelBase));
         if (!exists) {
           this._model = models.models[0]!.name;
           logger.warn({ fallback: this._model }, 'Ollama: specified model not found, using fallback');
@@ -120,9 +196,11 @@ class OllamaProvider extends LLMProvider {
       }
       
       this.initialized = true;
+      this.lastHealthCheck = { healthy: true, timestamp: now };
       return true;
     } catch {
       logger.debug('Ollama not available');
+      this.lastHealthCheck = { healthy: false, timestamp: now };
       return false;
     }
   }
@@ -132,37 +210,39 @@ class OllamaProvider extends LLMProvider {
     
     const startTime = performance.now();
     
-    const response = await retry(
-      async () => {
-        const fullPrompt = options.systemPrompt 
-          ? `${options.systemPrompt}\n\n${prompt}`
-          : prompt;
-          
-        return await this.client.generate({
-          model: this._model,
-          prompt: fullPrompt,
-          options: {
-            temperature: options.temperature ?? 0.7,
-            num_predict: options.maxTokens ?? 2048,
-            stop: options.stop,
-          },
-          stream: false,
-        });
-      },
-      { maxAttempts: this.maxRetries }
-    );
+    return this.circuitBreaker.execute(async () => {
+      const response = await retry(
+        async () => {
+          const fullPrompt = options.systemPrompt 
+            ? `${options.systemPrompt}\n\n${prompt}`
+            : prompt;
+            
+          return await this.client.generate({
+            model: this._model,
+            prompt: fullPrompt,
+            options: {
+              temperature: options.temperature ?? 0.7,
+              num_predict: options.maxTokens ?? 2048,
+              stop: options.stop ? [...options.stop] : undefined,
+            },
+            stream: false,
+          });
+        },
+        { maxAttempts: this.maxRetries }
+      );
 
-    return {
-      text: response.response,
-      provider: 'ollama',
-      model: this._model,
-      usage: {
-        promptTokens: response.prompt_eval_count ?? 0,
-        completionTokens: response.eval_count ?? 0,
-        totalTokens: (response.prompt_eval_count ?? 0) + (response.eval_count ?? 0),
-      },
-      durationMs: Math.round(performance.now() - startTime),
-    };
+      return {
+        text: response.response,
+        provider: 'ollama' as const,
+        model: this._model,
+        usage: {
+          promptTokens: response.prompt_eval_count ?? 0,
+          completionTokens: response.eval_count ?? 0,
+          totalTokens: (response.prompt_eval_count ?? 0) + (response.eval_count ?? 0),
+        },
+        durationMs: Math.round(performance.now() - startTime),
+      };
+    });
   }
 
   async completeJson<T>(prompt: string, options: CompletionOptions = {}): Promise<{ data: T | null; raw: string }> {
@@ -179,18 +259,21 @@ class OllamaProvider extends LLMProvider {
 class OpenAIProvider extends LLMProvider {
   readonly type: ProviderType = 'openai';
   private client: OpenAI;
-  private _model: string;
-  private maxRetries: number;
+  private readonly _model: string;
+  private readonly maxRetries: number;
+  private readonly timeoutMs: number;
 
   constructor(config: ProviderConfig) {
     super();
     this._model = config.openaiModel ?? 'gpt-5.2-codex';
-    this.maxRetries = config.maxRetries ?? 3;
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     
     this.client = new OpenAI({
       apiKey: config.openaiApiKey,
       baseURL: config.openaiBaseUrl,
       maxRetries: this.maxRetries,
+      timeout: this.timeoutMs,
     });
   }
 
@@ -199,6 +282,12 @@ class OpenAIProvider extends LLMProvider {
   }
 
   async isAvailable(): Promise<boolean> {
+    // Use cached result if recent
+    const now = Date.now();
+    if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+      return this.lastHealthCheck.healthy;
+    }
+    
     try {
       // Quick test with minimal tokens
       await this.client.chat.completions.create({
@@ -206,9 +295,11 @@ class OpenAIProvider extends LLMProvider {
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 5,
       });
+      this.lastHealthCheck = { healthy: true, timestamp: now };
       return true;
     } catch (error) {
       logger.debug({ error: getErrorMessage(error) }, 'OpenAI not available');
+      this.lastHealthCheck = { healthy: false, timestamp: now };
       return false;
     }
   }
@@ -216,34 +307,36 @@ class OpenAIProvider extends LLMProvider {
   async complete(prompt: string, options: CompletionOptions = {}): Promise<CompletionResponse> {
     const startTime = performance.now();
     
-    const messages: OpenAI.ChatCompletionMessageParam[] = [];
-    if (options.systemPrompt) {
-      messages.push({ role: 'system', content: options.systemPrompt });
-    }
-    messages.push({ role: 'user', content: prompt });
+    return this.circuitBreaker.execute(async () => {
+      const messages: OpenAI.ChatCompletionMessageParam[] = [];
+      if (options.systemPrompt) {
+        messages.push({ role: 'system', content: options.systemPrompt });
+      }
+      messages.push({ role: 'user', content: prompt });
 
-    const response = await this.client.chat.completions.create({
-      model: this._model,
-      messages,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens ?? 2048,
-      stop: options.stop,
-      response_format: options.jsonMode ? { type: 'json_object' } : undefined,
+      const response = await this.client.chat.completions.create({
+        model: this._model,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens ?? 2048,
+        stop: options.stop ? [...options.stop] : undefined,
+        response_format: options.jsonMode ? { type: 'json_object' } : undefined,
+      });
+
+      const choice = response.choices[0];
+      
+      return {
+        text: choice?.message?.content ?? '',
+        provider: 'openai' as const,
+        model: this._model,
+        usage: response.usage ? {
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens: response.usage.completion_tokens,
+          totalTokens: response.usage.total_tokens,
+        } : undefined,
+        durationMs: Math.round(performance.now() - startTime),
+      };
     });
-
-    const choice = response.choices[0];
-    
-    return {
-      text: choice?.message?.content ?? '',
-      provider: 'openai',
-      model: this._model,
-      usage: response.usage ? {
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
-        totalTokens: response.usage.total_tokens,
-      } : undefined,
-      durationMs: Math.round(performance.now() - startTime),
-    };
   }
 
   async completeJson<T>(prompt: string, options: CompletionOptions = {}): Promise<{ data: T | null; raw: string }> {
@@ -259,13 +352,15 @@ class OpenAIProvider extends LLMProvider {
 class AnthropicProvider extends LLMProvider {
   readonly type: ProviderType = 'anthropic';
   private client: Anthropic;
-  private _model: string;
-  private maxRetries: number;
+  private readonly _model: string;
+  private readonly maxRetries: number;
+  private readonly timeoutMs: number;
 
   constructor(config: ProviderConfig) {
     super();
     this._model = config.anthropicModel ?? 'claude-3-5-sonnet-20241022';
-    this.maxRetries = config.maxRetries ?? 3;
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     
     this.client = new Anthropic({
       apiKey: config.anthropicApiKey,
@@ -278,15 +373,23 @@ class AnthropicProvider extends LLMProvider {
   }
 
   async isAvailable(): Promise<boolean> {
+    // Use cached result if recent
+    const now = Date.now();
+    if (now - this.lastHealthCheck.timestamp < HEALTH_CHECK_INTERVAL_MS) {
+      return this.lastHealthCheck.healthy;
+    }
+    
     try {
       await this.client.messages.create({
         model: this._model,
         max_tokens: 10,
         messages: [{ role: 'user', content: 'hi' }],
       });
+      this.lastHealthCheck = { healthy: true, timestamp: now };
       return true;
     } catch (error) {
       logger.debug({ error: getErrorMessage(error) }, 'Anthropic not available');
+      this.lastHealthCheck = { healthy: false, timestamp: now };
       return false;
     }
   }
@@ -294,27 +397,29 @@ class AnthropicProvider extends LLMProvider {
   async complete(prompt: string, options: CompletionOptions = {}): Promise<CompletionResponse> {
     const startTime = performance.now();
 
-    const response = await this.client.messages.create({
-      model: this._model,
-      max_tokens: options.maxTokens ?? 2048,
-      system: options.systemPrompt,
-      messages: [{ role: 'user', content: prompt }],
+    return this.circuitBreaker.execute(async () => {
+      const response = await this.client.messages.create({
+        model: this._model,
+        max_tokens: options.maxTokens ?? 2048,
+        system: options.systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const textBlock = response.content.find(block => block.type === 'text');
+      const text = textBlock && 'text' in textBlock ? textBlock.text : '';
+
+      return {
+        text,
+        provider: 'anthropic' as const,
+        model: this._model,
+        usage: {
+          promptTokens: response.usage.input_tokens,
+          completionTokens: response.usage.output_tokens,
+          totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+        },
+        durationMs: Math.round(performance.now() - startTime),
+      };
     });
-
-    const textBlock = response.content.find(block => block.type === 'text');
-    const text = textBlock && 'text' in textBlock ? textBlock.text : '';
-
-    return {
-      text,
-      provider: 'anthropic',
-      model: this._model,
-      usage: {
-        promptTokens: response.usage.input_tokens,
-        completionTokens: response.usage.output_tokens,
-        totalTokens: response.usage.input_tokens + response.usage.output_tokens,
-      },
-      durationMs: Math.round(performance.now() - startTime),
-    };
   }
 
   async completeJson<T>(prompt: string, options: CompletionOptions = {}): Promise<{ data: T | null; raw: string }> {

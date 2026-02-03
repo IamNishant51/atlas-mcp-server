@@ -6,48 +6,83 @@
  * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-4-turbo, GPT-3.5-turbo)
  * - Anthropic (Claude 3.5, Claude 3)
  *
- * Auto-detects available providers and falls back gracefully.
+ * Features:
+ * - Auto-detection of available providers
+ * - Graceful fallback chain
+ * - Request deduplication
+ * - Connection health monitoring
+ * - Circuit breaker protection
+ *
+ * @module llm-provider
+ * @version 2.0.0
  */
-export type ProviderType = 'ollama' | 'openai' | 'anthropic' | 'auto';
+import { CircuitBreaker } from '../utils.js';
+export type ProviderType = 'ollama' | 'openai' | 'anthropic' | 'auto' | 'none';
+/** Provider health status */
+export type ProviderHealth = 'healthy' | 'degraded' | 'unavailable';
 export interface ProviderConfig {
-    type: ProviderType;
-    ollamaBaseUrl?: string;
-    ollamaModel?: string;
-    openaiApiKey?: string;
-    openaiModel?: string;
-    openaiBaseUrl?: string;
-    anthropicApiKey?: string;
-    anthropicModel?: string;
-    maxRetries?: number;
-    timeoutMs?: number;
+    readonly type: ProviderType;
+    readonly ollamaBaseUrl?: string;
+    readonly ollamaModel?: string;
+    readonly openaiApiKey?: string;
+    readonly openaiModel?: string;
+    readonly openaiBaseUrl?: string;
+    readonly anthropicApiKey?: string;
+    readonly anthropicModel?: string;
+    readonly maxRetries?: number;
+    readonly timeoutMs?: number;
 }
 export interface CompletionOptions {
-    systemPrompt?: string;
-    temperature?: number;
-    maxTokens?: number;
-    stop?: string[];
-    jsonMode?: boolean;
+    readonly systemPrompt?: string;
+    readonly temperature?: number;
+    readonly maxTokens?: number;
+    readonly stop?: readonly string[];
+    readonly jsonMode?: boolean;
+    /** Request timeout override */
+    readonly timeoutMs?: number;
+    /** Request ID for deduplication */
+    readonly requestId?: string;
 }
 export interface CompletionResponse {
-    text: string;
-    provider: ProviderType;
-    model: string;
-    usage?: {
-        promptTokens: number;
-        completionTokens: number;
-        totalTokens: number;
+    readonly text: string;
+    readonly provider: ProviderType;
+    readonly model: string;
+    readonly usage?: {
+        readonly promptTokens: number;
+        readonly completionTokens: number;
+        readonly totalTokens: number;
     };
-    durationMs: number;
+    readonly durationMs: number;
+    /** Whether this was a cached response */
+    readonly cached?: boolean;
 }
+/**
+ * Abstract base class for LLM providers
+ * Implementations must provide availability check and completion methods
+ */
 export declare abstract class LLMProvider {
     abstract readonly type: ProviderType;
     abstract readonly model: string;
+    /** Circuit breaker for resilience */
+    protected readonly circuitBreaker: CircuitBreaker;
+    /** Last health check result */
+    protected lastHealthCheck: {
+        healthy: boolean;
+        timestamp: number;
+    };
+    /** Check if provider is available */
     abstract isAvailable(): Promise<boolean>;
+    /** Generate a completion */
     abstract complete(prompt: string, options?: CompletionOptions): Promise<CompletionResponse>;
+    /** Generate a JSON completion */
     abstract completeJson<T>(prompt: string, options?: CompletionOptions): Promise<{
         data: T | null;
         raw: string;
     }>;
+    /** Get provider health status */
+    getHealth(): ProviderHealth;
+    /** Reset provider state */
+    reset(): void;
 }
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 export declare function setMcpServerInstance(server: Server): void;
