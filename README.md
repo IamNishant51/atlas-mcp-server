@@ -1,53 +1,129 @@
+# Atlas MCP Server
 
-# Atlas MCP Server (`atlas-pipeline-mcp`)
+<div align="center">
 
-**The Agentic AI Pipeline for your IDE.**
-Works natively with **Cursor**, **GitHub Copilot**, **Windsurf**, and **VS Code**.
+[![npm version](https://img.shields.io/npm/v/atlas-pipeline-mcp.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/atlas-pipeline-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/atlas-pipeline-mcp.svg?style=flat-square&color=green)](https://www.npmjs.com/package/atlas-pipeline-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=node.js)](https://nodejs.org/)
 
-Atlas is an MCP server that gives your IDE "Agentic Superpowers". Instead of just creating code, it enables a full analysis pipeline:
-**Intent → Context → Decomposition → Variants → Critique → Optimization**.
+**The Agentic AI Pipeline for your IDE**
 
----
+Advanced AI/ML-powered development tools with RAG search, ML bug prediction, intelligent code migration, and comprehensive test generation.
 
-## What's New in v1.0.22
+[Installation](#installation-1-click-setup) • [Features](#key-features) • [Tools](#all-available-tools-17-total) • [Usage](#how-to-use-cheat-sheet) • [Documentation](#advanced-integration-optional)
 
-**4 Advanced AI/ML Tools Added:**
-- **atlas_rag_search** - RAG-powered semantic code search with knowledge graphs
-- **atlas_ml_predict** - ML bug & performance prediction (70-85% accuracy)
-- **atlas_migrate** - Intelligent code migration (12 types: JS→TS, React upgrade, etc.)
-- **atlas_testgen_advanced** - Advanced test generation with edge cases & mocks
-
-**Professional Tools (13 Total):**
-- **atlas_refactor** - Code refactoring engine with complexity analysis
-- **atlas_profiler** - Performance profiling & bottleneck detection
-- **atlas_review** - Automated code review with quality scores
-- **atlas_dependencies** - Dependency analysis & vulnerability scanning
-- **atlas_dashboard** - Interactive metrics dashboard generator
-- **atlas_security** - Security vulnerability scanning (CWE, OWASP)
-- **atlas_test** - Comprehensive test case generation
-- **atlas_docs** - Auto-generate documentation (JSDoc, TSDoc, PyDoc)
-- **atlas_explain** - Code explanation with complexity analysis
-- **atlas_debug** - Root cause analysis & fix suggestions
-- **atlas_think** - Advanced sequential reasoning with branching
-- **atlas_critique** - Code quality critique with actionable feedback
-- **atlas_optimize** - Code optimization based on best practices
+</div>
 
 ---
 
-## Key Features
+## Overview
 
-- **Zero Config**: No API keys required. Uses your IDE's built-in AI (Copilot/Cursor) for analysis.
-- **17 Professional Tools**: 13 core tools + 4 advanced AI/ML tools (RAG search, ML prediction, migration, advanced testing).
-- **RAG-Powered Search**: Semantic code understanding with knowledge graphs - find code by asking "how does auth work?"
-- **ML Bug Prediction**: Predict bugs before production with 70-85% accuracy based on complexity, churn, and patterns.
-- **Intelligent Migration**: Automated code migration (JS→TS, React upgrades, Callbacks→Async) with breaking change detection.
-- **Advanced Test Generation**: Generate comprehensive test suites with edge cases, mocks, and 90%+ coverage projection.
-- **Agentic Workflow**: Breaks down tasks into a DAG (Directed Acyclic Graph) of subtasks.
-- **Optimization Loop**: Generates variants, critiques them, produces optimized solutions.
-- **Context Aware**: Analyzes project structure, file dependencies, and git history.
-- **Security Scanner**: Detects vulnerabilities with CWE IDs and OWASP categories.
-- **Smart Debugging**: Analyzes errors, parses stack traces, suggests fixes.
-- **High Performance**: LRU caching, request deduplication, parallel execution.
+Atlas MCP Server gives your IDE "Agentic Superpowers" through a full analysis pipeline:
+
+**Intent → Context → Decomposition → Variants → Critique → Optimization**
+
+Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copilot**, and **VS Code**.
+
+---
+
+---
+
+## ✨ What's New in v1.0.23
+
+### Advanced AI/ML Tools (4 New)
+
+<table>
+<tr>
+<td width="25%"><b>RAG Search</b></td>
+<td>Semantic code search with knowledge graphs and natural language queries</td>
+</tr>
+<tr>
+<td><b>ML Predictor</b></td>
+<td>Bug & performance prediction with 70-85% accuracy using machine learning</td>
+</tr>
+<tr>
+<td><b>Code Migration</b></td>
+<td>Intelligent migration (12 types: JS→TS, React upgrades, Callbacks→Async)</td>
+</tr>
+<tr>
+<td><b>Test Generator</b></td>
+<td>Advanced test generation with edge cases, mocks, and property-based testing</td>
+</tr>
+</table>
+
+### Core Professional Tools (13)
+
+<table>
+<tr>
+<td width="25%"><b>Refactor</b></td>
+<td>Code refactoring engine with complexity analysis</td>
+</tr>
+<tr>
+<td><b>Profiler</b></td>
+<td>Performance profiling & bottleneck detection (O(n), O(n²), etc.)</td>
+</tr>
+<tr>
+<td><b>Review</b></td>
+<td>Automated code review with quality scores and security checks</td>
+</tr>
+<tr>
+<td><b>Dependencies</b></td>
+<td>Dependency analysis, unused package detection, vulnerability scanning</td>
+</tr>
+<tr>
+<td><b>Dashboard</b></td>
+<td>Interactive HTML metrics dashboards with real-time data</td>
+</tr>
+<tr>
+<td><b>Security</b></td>
+<td>Security vulnerability scanning (CWE, OWASP standards)</td>
+</tr>
+<tr>
+<td><b>Test Gen</b></td>
+<td>Comprehensive test case generation (Jest, Vitest, Pytest, Mocha)</td>
+</tr>
+<tr>
+<td><b>Docs Gen</b></td>
+<td>Auto-generate documentation (JSDoc, TSDoc, PyDoc)</td>
+</tr>
+</table>
+
+---
+
+## 🎯 Key Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🤖 AI/ML Capabilities
+- **RAG Search** - Semantic code understanding with knowledge graphs
+- **ML Prediction** - Bug & performance forecasting (70-85% accuracy)
+- **Code Migration** - 12 intelligent migration types
+- **Test Generation** - Advanced test suites with edge cases
+
+</td>
+<td width="50%" valign="top">
+
+### ⚡ Professional Tools
+- **Full Pipeline** - Intent → Context → Variants → Optimize
+- **Quality Analysis** - Code review, security, complexity
+- **Performance** - Profiling, bottleneck detection
+- **Automation** - Tests, docs, refactoring
+
+</td>
+</tr>
+</table>
+
+### 🌟 Why Atlas?
+
+- **Zero Config**: No API keys required - uses your IDE's built-in AI (Copilot/Cursor)
+- **17 Professional Tools**: 13 core + 4 advanced AI/ML capabilities
+- **Agentic Workflow**: DAG-based task decomposition
+- **Context Aware**: Project structure, dependencies, git history analysis
+- **High Performance**: LRU caching, request deduplication, parallel execution
 
 ---
 
@@ -72,39 +148,128 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ---
 
-## All Available Tools (17 Total)
+## 🛠️ All Available Tools (17 Total)
 
-### Advanced AI/ML Tools (4)
-| Tool | Description |
-| :--- | :--- |
-| `atlas_rag_search` | Semantic code search with RAG, knowledge graphs, and natural language queries |
-| `atlas_ml_predict` | ML-powered bug & performance prediction with 70-85% accuracy |
-| `atlas_migrate` | Intelligent code migration (12 types: JS→TS, React, Callbacks→Async, etc.) |
-| `atlas_testgen_advanced` | Advanced test generation with edge cases, mocks, property-based testing |
+### 🔥 Advanced AI/ML Tools
 
-### Professional Development Tools (13)
-| Tool | Description |
-| :--- | :--- |
-| `atlas_pipeline` | Full agentic pipeline: Intent → Context → Decompose → Variants → Critique → Optimize |
-| `atlas_refactor` | Code refactoring with complexity metrics and structural analysis |
-| `atlas_profiler` | Performance profiling and bottleneck detection (O(n), O(n²), etc.) |
-| `atlas_review` | Automated code review with quality scores and security checks |
-| `atlas_dependencies` | Dependency analysis, unused package detection, vulnerability scanning |
-| `atlas_dashboard` | Generate interactive HTML metrics dashboards |
-| `atlas_intent` | Analyze user intent from natural language |
-| `atlas_context` | Gather project context, dependencies, and structure |
-| `atlas_git` | Analyze Git history, branches, and file changes |
-| `atlas_decompose` | Break down complex tasks into subtasks (DAG) |
-| `atlas_variants` | Generate multiple solution approaches |
-| `atlas_critique` | Review code for quality, security, best practices |
-| `atlas_optimize` | Optimize code based on feedback |
-| `atlas_security` | Scan for security vulnerabilities (CWE, OWASP) |
-| `atlas_test` | Generate comprehensive test cases |
-| `atlas_docs` | Generate documentation (JSDoc/TSDoc/PyDoc) |
-| `atlas_explain` | Explain code with complexity & pattern analysis |
-| `atlas_debug` | Debug errors with root cause analysis |
-| `atlas_think` | Advanced sequential reasoning with branching |
-| `atlas_providers` | Check LLM provider status |
+<table>
+<tr>
+<td width="30%"><code>atlas_rag_search</code></td>
+<td><b>RAG-Powered Semantic Search</b><br/>Natural language code search with knowledge graphs. Ask "how does auth work?" and get contextual results.</td>
+</tr>
+<tr>
+<td><code>atlas_ml_predict</code></td>
+<td><b>ML Bug & Performance Prediction</b><br/>Predict bugs before production with 70-85% accuracy. Analyzes complexity, churn, and code patterns.</td>
+</tr>
+<tr>
+<td><code>atlas_migrate</code></td>
+<td><b>Intelligent Code Migration</b><br/>Automated migration support for 12 types: JS→TS, React upgrades, Callbacks→Async, and more.</td>
+</tr>
+<tr>
+<td><code>atlas_testgen_advanced</code></td>
+<td><b>Advanced Test Generation</b><br/>Generate comprehensive test suites with edge cases, mocks, stubs, and 90%+ coverage projection.</td>
+</tr>
+</table>
+
+### ⚡ Core Pipeline & Analysis Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_pipeline</code></td>
+<td><b>Full Agentic Pipeline</b><br/>Complete workflow: Intent → Context → Decompose → Variants → Critique → Optimize</td>
+</tr>
+<tr>
+<td><code>atlas_intent</code></td>
+<td><b>Intent Analysis</b><br/>Extract actionable intent from natural language requests</td>
+</tr>
+<tr>
+<td><code>atlas_context</code></td>
+<td><b>Project Context Gathering</b><br/>Analyze project structure, dependencies, and file relationships</td>
+</tr>
+<tr>
+<td><code>atlas_git</code></td>
+<td><b>Git History Analysis</b><br/>Analyze commits, branches, file changes, and code evolution</td>
+</tr>
+<tr>
+<td><code>atlas_decompose</code></td>
+<td><b>Task Decomposition</b><br/>Break complex tasks into DAG (Directed Acyclic Graph) of subtasks</td>
+</tr>
+<tr>
+<td><code>atlas_variants</code></td>
+<td><b>Solution Variants</b><br/>Generate multiple implementation approaches with pros/cons analysis</td>
+</tr>
+</table>
+
+### 🎯 Quality & Optimization Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_review</code></td>
+<td><b>Automated Code Review</b><br/>Comprehensive analysis with quality scores, security checks, and best practice validation</td>
+</tr>
+<tr>
+<td><code>atlas_critique</code></td>
+<td><b>Code Critique</b><br/>Deep review for quality, security, performance, and maintainability</td>
+</tr>
+<tr>
+<td><code>atlas_optimize</code></td>
+<td><b>Code Optimization</b><br/>Apply improvements based on critique feedback and best practices</td>
+</tr>
+<tr>
+<td><code>atlas_refactor</code></td>
+<td><b>Smart Refactoring</b><br/>Code restructuring with complexity metrics and structural analysis</td>
+</tr>
+<tr>
+<td><code>atlas_security</code></td>
+<td><b>Security Scanner</b><br/>Detect vulnerabilities with CWE IDs and OWASP category mapping</td>
+</tr>
+</table>
+
+### 🚀 Development Productivity Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_profiler</code></td>
+<td><b>Performance Profiling</b><br/>Detect bottlenecks, analyze time complexity (O(n), O(n²)), and memory usage</td>
+</tr>
+<tr>
+<td><code>atlas_test</code></td>
+<td><b>Test Case Generation</b><br/>Generate comprehensive tests for Jest, Vitest, Pytest, Mocha</td>
+</tr>
+<tr>
+<td><code>atlas_docs</code></td>
+<td><b>Auto Documentation</b><br/>Generate JSDoc, TSDoc, or PyDoc documentation automatically</td>
+</tr>
+<tr>
+<td><code>atlas_dependencies</code></td>
+<td><b>Dependency Analysis</b><br/>Detect unused packages, analyze dependencies, scan for vulnerabilities</td>
+</tr>
+<tr>
+<td><code>atlas_dashboard</code></td>
+<td><b>Metrics Dashboard</b><br/>Generate interactive HTML dashboards with real-time metrics</td>
+</tr>
+<tr>
+<td><code>atlas_explain</code></td>
+<td><b>Code Explanation</b><br/>Explain code with complexity analysis and pattern detection</td>
+</tr>
+<tr>
+<td><code>atlas_debug</code></td>
+<td><b>Smart Debugging</b><br/>Root cause analysis, stack trace parsing, and fix suggestions</td>
+</tr>
+<tr>
+<td><code>atlas_think</code></td>
+<td><b>Advanced Reasoning</b><br/>Sequential reasoning with branching logic for complex problems</td>
+</tr>
+</table>
+
+### 🔧 Utility Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_providers</code></td>
+<td><b>Provider Status</b><br/>Check available LLM providers and their current status</td>
+</tr>
+</table>
 
 ---
 
