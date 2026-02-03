@@ -9,28 +9,28 @@ Atlas is an MCP server that gives your IDE "Agentic Superpowers". Instead of jus
 
 ---
 
-## 🚀 What's New in v1.0.22
+## What's New in v1.0.22
 
-**🔥 4 Advanced AI/ML Tools Added:**
-- 🔍 **atlas_rag_search** - RAG-powered semantic code search with knowledge graphs
-- 🤖 **atlas_ml_predict** - ML bug & performance prediction (70-85% accuracy)
-- 🔄 **atlas_migrate** - Intelligent code migration (12 types: JS→TS, React upgrade, etc.)
-- ✅ **atlas_testgen_advanced** - Advanced test generation with edge cases & mocks
+**4 Advanced AI/ML Tools Added:**
+- **atlas_rag_search** - RAG-powered semantic code search with knowledge graphs
+- **atlas_ml_predict** - ML bug & performance prediction (70-85% accuracy)
+- **atlas_migrate** - Intelligent code migration (12 types: JS→TS, React upgrade, etc.)
+- **atlas_testgen_advanced** - Advanced test generation with edge cases & mocks
 
 **Professional Tools (13 Total):**
-- 🔧 **atlas_refactor** - Code refactoring engine with complexity analysis
-- ⚡ **atlas_profiler** - Performance profiling & bottleneck detection
-- 📝 **atlas_review** - Automated code review with quality scores
-- 📦 **atlas_dependencies** - Dependency analysis & vulnerability scanning
-- 📊 **atlas_dashboard** - Interactive metrics dashboard generator
-- 🔒 **atlas_security** - Security vulnerability scanning (CWE, OWASP)
-- 🧪 **atlas_test** - Comprehensive test case generation
-- 📚 **atlas_docs** - Auto-generate documentation (JSDoc, TSDoc, PyDoc)
-- 💡 **atlas_explain** - Code explanation with complexity analysis
-- 🐛 **atlas_debug** - Root cause analysis & fix suggestions
-- 🧠 **atlas_think** - Advanced sequential reasoning with branching
-- 🎯 **atlas_critique** - Code quality critique with actionable feedback
-- 🚀 **atlas_optimize** - Code optimization based on best practices
+- **atlas_refactor** - Code refactoring engine with complexity analysis
+- **atlas_profiler** - Performance profiling & bottleneck detection
+- **atlas_review** - Automated code review with quality scores
+- **atlas_dependencies** - Dependency analysis & vulnerability scanning
+- **atlas_dashboard** - Interactive metrics dashboard generator
+- **atlas_security** - Security vulnerability scanning (CWE, OWASP)
+- **atlas_test** - Comprehensive test case generation
+- **atlas_docs** - Auto-generate documentation (JSDoc, TSDoc, PyDoc)
+- **atlas_explain** - Code explanation with complexity analysis
+- **atlas_debug** - Root cause analysis & fix suggestions
+- **atlas_think** - Advanced sequential reasoning with branching
+- **atlas_critique** - Code quality critique with actionable feedback
+- **atlas_optimize** - Code optimization based on best practices
 
 ---
 
@@ -74,7 +74,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ## All Available Tools (17 Total)
 
-### 🔥 Advanced AI/ML Tools (4)
+### Advanced AI/ML Tools (4)
 | Tool | Description |
 | :--- | :--- |
 | `atlas_rag_search` | Semantic code search with RAG, knowledge graphs, and natural language queries |
@@ -82,7 +82,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 | `atlas_migrate` | Intelligent code migration (12 types: JS→TS, React, Callbacks→Async, etc.) |
 | `atlas_testgen_advanced` | Advanced test generation with edge cases, mocks, property-based testing |
 
-### 🛠️ Professional Development Tools (13)
+### Professional Development Tools (13)
 | Tool | Description |
 | :--- | :--- |
 | `atlas_pipeline` | Full agentic pipeline: Intent → Context → Decompose → Variants → Critique → Optimize |
@@ -112,7 +112,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 Once installed, simply chat with your AI Assistant (Copilot Chat or Cursor Chat). The server automatically activates based on your intent.
 
-### 🔥 Advanced AI/ML Tools
+### Advanced AI/ML Tools
 | Goal | What to Ask | Tool Used |
 | :--- | :--- | :--- |
 | **Semantic Code Search** | "Search for authentication code using RAG" | `atlas_rag_search` |
@@ -120,7 +120,7 @@ Once installed, simply chat with your AI Assistant (Copilot Chat or Cursor Chat)
 | **Migrate Codebase** | "Migrate this file from JavaScript to TypeScript" | `atlas_migrate` |
 | **Advanced Testing** | "Generate comprehensive tests with edge cases" | `atlas_testgen_advanced` |
 
-### 🛠️ Professional Development Tools
+### Professional Development Tools
 | Goal | What to Ask | Tool Used |
 | :--- | :--- | :--- |
 | **Fix a complex file** | "Run the **pipeline** on `utils.ts` to refactor it." | `atlas_pipeline` |
