@@ -77,6 +77,10 @@ import { explainCode } from './tools/explain.js';
 import { analyzeError } from './tools/debug.js';
 import { processThought, startSession } from './tools/think.js';
 import { designUI } from './tools/ui-ux-designer.js';
+import { analyzePerformance } from './tools/frontend-performance-doctor.js';
+import { analyzeCSS } from './tools/css-architecture-wizard.js';
+import { generateAnimation } from './tools/animation-studio.js';
+import { generateAPIIntegration } from './tools/api-integration-helper.js';
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -523,6 +527,133 @@ Each thought can: question previous steps, branch into alternatives, mark dead e
             required: ['requirements'],
         },
     },
+    {
+        name: 'atlas_performance_doctor',
+        description: 'Frontend performance analyzer that detects React/Vue re-render issues, bundle bloat, memory leaks, and provides specific code fixes with estimated improvement percentages.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                code: { type: 'string', description: 'The frontend code to analyze' },
+                framework: {
+                    type: 'string',
+                    enum: ['react', 'vue', 'angular', 'svelte', 'next', 'nuxt'],
+                    description: 'Frontend framework used'
+                },
+                analysisType: {
+                    type: 'string',
+                    enum: ['full', 'render', 'bundle', 'network', 'quick'],
+                    description: 'Type of performance analysis to run'
+                },
+                includeFixedCode: { type: 'boolean', description: 'Include auto-fixed code in the report' },
+                targetMetrics: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Specific metrics to focus on'
+                },
+            },
+            required: ['code', 'framework'],
+        },
+    },
+    {
+        name: 'atlas_css_wizard',
+        description: 'CSS architecture analyzer that detects specificity conflicts, generates design tokens, converts between CSS methodologies (BEM, CSS Modules, Tailwind, styled-components), and provides refactored CSS.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                css: { type: 'string', description: 'The CSS code to analyze' },
+                html: { type: 'string', description: 'Optional HTML to find unused classes' },
+                targetMethodology: {
+                    type: 'string',
+                    enum: ['bem', 'css-modules', 'tailwind', 'styled-components', 'emotion'],
+                    description: 'Target CSS methodology to migrate to'
+                },
+                generateTokens: { type: 'boolean', description: 'Generate design system tokens' },
+                framework: {
+                    type: 'string',
+                    enum: ['react', 'vue', 'angular', 'svelte'],
+                    description: 'Target framework for code output'
+                },
+            },
+            required: ['css'],
+        },
+    },
+    {
+        name: 'atlas_animation_studio',
+        description: 'Professional animation generator that creates CSS animations, Framer Motion code, GSAP timelines, and micro-interactions. Supports entrance, exit, hover, loading, scroll, and gesture animations with accessibility support.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: ['entrance', 'exit', 'hover', 'loading', 'scroll', 'gesture', 'transition', 'micro-interaction'],
+                    description: 'Type of animation to create'
+                },
+                element: { type: 'string', description: 'Description of the element to animate (button, card, modal, etc.)' },
+                style: {
+                    type: 'string',
+                    enum: ['smooth', 'bouncy', 'elastic', 'sharp', 'natural', 'playful'],
+                    description: 'Animation style/feel'
+                },
+                duration: { type: 'number', description: 'Animation duration in milliseconds' },
+                library: {
+                    type: 'string',
+                    enum: ['css', 'framer-motion', 'gsap', 'react-spring', 'anime-js'],
+                    description: 'Animation library to generate code for'
+                },
+                framework: {
+                    type: 'string',
+                    enum: ['react', 'vue', 'svelte', 'vanilla'],
+                    description: 'Target framework'
+                },
+                includeReducedMotion: { type: 'boolean', description: 'Include prefers-reduced-motion support' },
+            },
+            required: ['type', 'element', 'library'],
+        },
+    },
+    {
+        name: 'atlas_api_helper',
+        description: 'API integration helper that generates TypeScript types from API responses, creates React Query/SWR hooks, generates mock data for testing, builds API clients with interceptors, and creates Zod validation schemas.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                endpoints: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+                            path: { type: 'string' },
+                            description: { type: 'string' },
+                            requestBody: { type: 'object' },
+                            responseBody: { type: 'object' },
+                        },
+                        required: ['method', 'path', 'responseBody']
+                    },
+                    description: 'API endpoints to generate code for'
+                },
+                baseUrl: { type: 'string', description: 'Base URL of the API' },
+                library: {
+                    type: 'string',
+                    enum: ['react-query', 'swr', 'axios', 'fetch', 'tanstack-query'],
+                    description: 'Data fetching library to use'
+                },
+                generateTypes: { type: 'boolean', description: 'Generate TypeScript types' },
+                generateMocks: { type: 'boolean', description: 'Generate mock data and MSW handlers' },
+                generateZodSchemas: { type: 'boolean', description: 'Generate Zod validation schemas' },
+                authType: {
+                    type: 'string',
+                    enum: ['bearer', 'api-key', 'basic', 'oauth2', 'none'],
+                    description: 'Authentication type'
+                },
+                framework: {
+                    type: 'string',
+                    enum: ['react', 'vue', 'svelte', 'next'],
+                    description: 'Target framework'
+                },
+            },
+            required: ['endpoints', 'baseUrl', 'library'],
+        },
+    },
 ];
 // ============================================================================
 // Helper Functions for MCP Tool Adapters
@@ -884,6 +1015,57 @@ async function handleTool(name, args) {
                     inspiration: args['inspiration'],
                     targetAudience: args['targetAudience'],
                     constraints: args['constraints'],
+                });
+                return result;
+            }
+            case 'atlas_performance_doctor': {
+                const result = await analyzePerformance({
+                    code: z.string().parse(args['code']),
+                    framework: z.enum(['react', 'vue', 'angular', 'svelte', 'next', 'nuxt']).parse(args['framework']),
+                    analysisType: args['analysisType'],
+                    includeFixedCode: args['includeFixedCode'],
+                    targetMetrics: args['targetMetrics'],
+                });
+                return result;
+            }
+            case 'atlas_css_wizard': {
+                const result = await analyzeCSS({
+                    css: z.string().parse(args['css']),
+                    html: args['html'],
+                    targetMethodology: args['targetMethodology'],
+                    generateTokens: args['generateTokens'],
+                    framework: args['framework'],
+                });
+                return result;
+            }
+            case 'atlas_animation_studio': {
+                const result = await generateAnimation({
+                    type: z.enum(['entrance', 'exit', 'hover', 'loading', 'scroll', 'gesture', 'transition', 'micro-interaction']).parse(args['type']),
+                    element: z.string().parse(args['element']),
+                    style: args['style'],
+                    duration: args['duration'],
+                    library: z.enum(['css', 'framer-motion', 'gsap', 'react-spring', 'anime-js']).parse(args['library']),
+                    framework: args['framework'],
+                    includeReducedMotion: args['includeReducedMotion'],
+                });
+                return result;
+            }
+            case 'atlas_api_helper': {
+                const result = await generateAPIIntegration({
+                    endpoints: z.array(z.object({
+                        method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+                        path: z.string(),
+                        description: z.string().optional(),
+                        requestBody: z.record(z.any()).optional(),
+                        responseBody: z.record(z.any()),
+                    })).parse(args['endpoints']),
+                    baseUrl: z.string().parse(args['baseUrl']),
+                    library: z.enum(['react-query', 'swr', 'axios', 'fetch', 'tanstack-query']).parse(args['library']),
+                    generateTypes: args['generateTypes'],
+                    generateMocks: args['generateMocks'],
+                    generateZodSchemas: args['generateZodSchemas'],
+                    authType: args['authType'],
+                    framework: args['framework'],
                 });
                 return result;
             }

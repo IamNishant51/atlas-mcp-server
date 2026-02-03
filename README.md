@@ -30,11 +30,36 @@ Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copil
 
 ---
 
-## ✨ What's New in v1.0.25
+## ✨ What's New in v1.0.26
 
-### 🌟 5 Advanced Senior Developer Tools (NEW!)
+### 🎨 4 Powerful Frontend Developer Tools (NEW!)
 
-These tools help frontend developers think like senior engineers with AI-powered guidance:
+These tools solve real-time frontend development problems with production-ready solutions:
+
+<table>
+<tr>
+<td width="25%"><b>⚡ Performance Doctor</b></td>
+<td>Detects React/Vue re-render issues, bundle bloat, memory leaks, and provides specific code fixes with improvement estimates</td>
+</tr>
+<tr>
+<td><b>🎨 CSS Wizard</b></td>
+<td>CSS architecture analyzer - detects specificity conflicts, generates design tokens, converts between BEM/Tailwind/CSS Modules/styled-components</td>
+</tr>
+<tr>
+<td><b>✨ Animation Studio</b></td>
+<td>Professional animation generator - CSS keyframes, Framer Motion, GSAP timelines, micro-interactions with accessibility support</td>
+</tr>
+<tr>
+<td><b>🔌 API Helper</b></td>
+<td>API integration assistant - generates TypeScript types, React Query/SWR hooks, mock data, Zod schemas, and error handling</td>
+</tr>
+</table>
+
+---
+
+## Previous Releases
+
+### v1.0.25 - 5 Senior Developer Tools
 
 <table>
 <tr>
@@ -181,7 +206,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ---
 
-## 🛠️ All Available Tools (23 Total)
+## 🛠️ All Available Tools (27 Total)
 
 ### 🔥 Advanced AI/ML Tools
 
@@ -289,6 +314,27 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 <tr>
 <td width="30%"><code>atlas_ui_ux_designer</code></td>
 <td><b>UI/UX Designer</b><br/>Find best design inspirations online, generate multiple design options with images, and create production-ready code. Supports React, Vue, HTML, Svelte with accessibility guidance.</td>
+</tr>
+</table>
+
+### 🚀 Frontend Developer Tools (NEW in v1.0.26!)
+
+<table>
+<tr>
+<td width="30%"><code>atlas_performance_doctor</code></td>
+<td><b>Frontend Performance Doctor</b><br/>Detects React/Vue re-render issues, bundle bloat, memory leaks, Core Web Vitals issues. Provides specific code fixes with improvement estimates (e.g., "30-50% fewer re-renders").</td>
+</tr>
+<tr>
+<td><code>atlas_css_wizard</code></td>
+<td><b>CSS Architecture Wizard</b><br/>Analyzes CSS specificity conflicts, generates design tokens, converts between BEM/Tailwind/CSS Modules/styled-components/Emotion. Finds unused CSS and duplicates.</td>
+</tr>
+<tr>
+<td><code>atlas_animation_studio</code></td>
+<td><b>Animation Studio</b><br/>Professional animation generator with 30+ presets. Creates CSS keyframes, Framer Motion, GSAP, React Spring, and Anime.js code. Includes micro-interactions, scroll animations, and accessibility support.</td>
+</tr>
+<tr>
+<td><code>atlas_api_helper</code></td>
+<td><b>API Integration Helper</b><br/>Generates TypeScript types from API responses, React Query/SWR hooks, MSW mock handlers, Zod validation schemas, and complete API clients with error handling.</td>
 </tr>
 </table>
 
