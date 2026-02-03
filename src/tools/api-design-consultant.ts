@@ -83,7 +83,7 @@ export interface RecommendedPattern {
 
 export interface ErrorHandlingGuide {
   standardErrorFormat: string;
-  statusCodeMapping: Record<string, number>;
+  statusCodeMapping: Record<number, string>;
   errorResponses: ErrorResponse[];
   retryStrategy: string;
 }
@@ -364,16 +364,16 @@ function createErrorHandlingGuide(request: ApiDesignRequest): ErrorHandlingGuide
   }
 }`,
     statusCodeMapping: {
-      '200': 'OK - Request succeeded',
-      '201': 'Created - Resource created',
-      '204': 'No Content - Success, no body',
-      '400': 'Bad Request - Client error',
-      '401': 'Unauthorized - Authentication required',
-      '403': 'Forbidden - Insufficient permissions',
-      '404': 'Not Found - Resource not found',
-      '429': 'Too Many Requests - Rate limited',
-      '500': 'Internal Server Error - Server error',
-      '503': 'Service Unavailable - Maintenance',
+      200: 'OK - Request succeeded',
+      201: 'Created - Resource created',
+      204: 'No Content - Success, no body',
+      400: 'Bad Request - Client error',
+      401: 'Unauthorized - Authentication required',
+      403: 'Forbidden - Insufficient permissions',
+      404: 'Not Found - Resource not found',
+      429: 'Too Many Requests - Rate limited',
+      500: 'Internal Server Error - Server error',
+      503: 'Service Unavailable - Maintenance',
     },
     errorResponses: [
       {

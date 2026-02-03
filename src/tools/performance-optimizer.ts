@@ -198,7 +198,7 @@ async function analyzePerformance(
 async function analyzeWithAI(
   request: PerformanceOptimizationRequest
 ): Promise<PerformanceAnalysis> {
-  const provider = getActiveProvider();
+  const provider = await getActiveProvider();
 
   const metricsContext = request.metrics
     ? `Current metrics:\n${Object.entries(request.metrics)
@@ -371,13 +371,19 @@ export default () => <Suspense fallback={<div>Loading...</div>}>
 function prioritizeActions(strategies: OptimizationStrategy[]): Action[] {
   return strategies
     .filter(s => s.priority >= 7)
-    .map((strategy, index) => ({
-      priority: index === 0 ? 'critical' : index === 1 ? 'high' : 'medium',
-      action: `Implement: ${strategy.name}`,
-      expectedGain: Math.max(5, 30 - index * 5),
-      effort: strategy.effort,
-      timeline: index === 0 ? 'This week' : `Next ${index + 1} weeks`,
-    }))
+    .map((strategy, index) => {
+      const priorityMap: Record<number, 'critical' | 'high' | 'medium'> = {
+        0: 'critical',
+        1: 'high',
+      };
+      return {
+        priority: (priorityMap[index] || 'medium') as 'critical' | 'high' | 'medium',
+        action: `Implement: ${strategy.name}`,
+        expectedGain: Math.max(5, 30 - index * 5),
+        effort: strategy.effort,
+        timeline: index === 0 ? 'This week' : `Next ${index + 1} weeks`,
+      };
+    })
     .slice(0, 5);
 }
 

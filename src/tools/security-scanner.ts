@@ -177,7 +177,7 @@ async function findVulnerabilities(
  * AI-powered security scanning
  */
 async function scanWithAI(request: SecurityScanRequest): Promise<Vulnerability[]> {
-  const provider = getActiveProvider();
+  const provider = await getActiveProvider();
 
   const prompt = `You are a senior security engineer. Scan this frontend application for vulnerabilities:
 

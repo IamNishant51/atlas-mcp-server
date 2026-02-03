@@ -162,7 +162,7 @@ async function analyzeArchitecture(
  * AI-powered senior perspective analysis
  */
 async function analyzeWithAI(request: SeniorMentorRequest): Promise<ArchitectureAnalysis> {
-  const provider = getActiveProvider();
+  const provider = await getActiveProvider();
 
   const prompt = `You are an extremely experienced senior frontend developer with 15+ years of experience.
 Analyze this problem from a senior perspective:

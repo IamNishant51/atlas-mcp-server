@@ -30,9 +30,38 @@ Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copil
 
 ---
 
-## ✨ What's New in v1.0.23
+## ✨ What's New in v1.0.25
 
-### Advanced AI/ML Tools (4 New)
+### 🌟 5 Advanced Senior Developer Tools (NEW!)
+
+These tools help frontend developers think like senior engineers with AI-powered guidance:
+
+<table>
+<tr>
+<td width="25%"><b>🧠 Senior Mentor</b></td>
+<td>Architectural guidance from a 15+ year veteran perspective with trade-off analysis and senior lessons</td>
+</tr>
+<tr>
+<td><b>⚡ Performance Optimizer</b></td>
+<td>Deep performance analysis with Web Vitals optimization and bottleneck detection</td>
+</tr>
+<tr>
+<td><b>🔒 Security Scanner</b></td>
+<td>Enterprise-grade vulnerability detection with compliance assessment (GDPR, CCPA, HIPAA, PCI-DSS)</td>
+</tr>
+<tr>
+<td><b>📦 State Management Architect</b></td>
+<td>Pattern comparison and scalability analysis for Redux, Zustand, Jotai, Recoil, and more</td>
+</tr>
+<tr>
+<td><b>🏗️ API Design Consultant</b></td>
+<td>RESTful and GraphQL API design review with best practices and documentation templates</td>
+</tr>
+</table>
+
+### Previous Releases (v1.0.23)
+
+#### Advanced AI/ML Tools (4)
 
 <table>
 <tr>
@@ -92,6 +121,10 @@ Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copil
 
 ---
 
+## ✨ What's New in v1.0.23
+
+---
+
 ## 🎯 Key Features
 
 <table>
@@ -120,7 +153,7 @@ Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copil
 ### 🌟 Why Atlas?
 
 - **Zero Config**: No API keys required - uses your IDE's built-in AI (Copilot/Cursor)
-- **17 Professional Tools**: 13 core + 4 advanced AI/ML capabilities
+- **22 Professional Tools**: 13 core + 4 advanced AI/ML + 5 senior developer tools
 - **Agentic Workflow**: DAG-based task decomposition
 - **Context Aware**: Project structure, dependencies, git history analysis
 - **High Performance**: LRU caching, request deduplication, parallel execution
@@ -148,7 +181,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ---
 
-## 🛠️ All Available Tools (17 Total)
+## 🛠️ All Available Tools (22 Total)
 
 ### 🔥 Advanced AI/ML Tools
 
@@ -222,6 +255,31 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 <tr>
 <td><code>atlas_security</code></td>
 <td><b>Security Scanner</b><br/>Detect vulnerabilities with CWE IDs and OWASP category mapping</td>
+</tr>
+</table>
+
+### 🧠 Advanced Senior Developer Tools (NEW!)
+
+<table>
+<tr>
+<td width="30%"><code>atlas_senior_mentor</code></td>
+<td><b>Senior Mentor</b><br/>Architectural guidance from 15+ year veteran perspective with trade-off analysis and senior lessons</td>
+</tr>
+<tr>
+<td><code>atlas_performance_optimizer</code></td>
+<td><b>Performance Optimizer</b><br/>Deep performance analysis with Web Vitals optimization and bottleneck detection</td>
+</tr>
+<tr>
+<td><code>atlas_security_scanner</code></td>
+<td><b>Security Scanner Pro</b><br/>Enterprise-grade vulnerability detection with compliance assessment (GDPR, CCPA, HIPAA, PCI-DSS)</td>
+</tr>
+<tr>
+<td><code>atlas_state_architect</code></td>
+<td><b>State Management Architect</b><br/>Pattern comparison and scalability analysis for Redux, Zustand, Jotai, Recoil</td>
+</tr>
+<tr>
+<td><code>atlas_api_consultant</code></td>
+<td><b>API Design Consultant</b><br/>RESTful and GraphQL API design review with best practices and documentation templates</td>
 </tr>
 </table>
 
