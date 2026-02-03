@@ -292,29 +292,34 @@ function detectCircularDependencies(edges: DependencyEdge[]): string[][] {
 // ============================================================================
 
 /**
- * Find which dependencies are actually used in the codebase
+ * Find which dependencies are actually used in the codebase (OPTIMIZED)
  */
 async function detectUsedDependencies(projectPath: string, dependencies: string[]): Promise<Set<string>> {
   const used = new Set<string>();
   
+  if (dependencies.length === 0) {
+    return used;
+  }
+  
   try {
-    // Search for import/require statements
     const sourceFiles = await findSourceFiles(projectPath);
     
-    for (const file of sourceFiles) {
-      const content = await fs.readFile(file, 'utf-8');
+    // Read files in parallel batches to improve performance
+    const BATCH_SIZE = 10;
+    const depPatterns = createDependencyPatterns(dependencies);
+    
+    for (let i = 0; i < sourceFiles.length; i += BATCH_SIZE) {
+      const batch = sourceFiles.slice(i, i + BATCH_SIZE);
+      const contents = await Promise.all(
+        batch.map(file => fs.readFile(file, 'utf-8').catch(() => ''))
+      );
       
-      for (const dep of dependencies) {
-        // Check for various import patterns
-        const patterns = [
-          new RegExp(`import .+ from ['"]${dep}['"]`, 'g'),
-          new RegExp(`import ['"]${dep}['"]`, 'g'),
-          new RegExp(`require\\(['"]${dep}['"]\\)`, 'g'),
-          new RegExp(`from ['"]${dep}/`, 'g'),
-        ];
-        
-        if (patterns.some(pattern => pattern.test(content))) {
-          used.add(dep);
+      // Check each file content against dependency patterns
+      for (const content of contents) {
+        for (const [dep, patterns] of depPatterns.entries()) {
+          if (!used.has(dep) && patterns.some(p => p.test(content))) {
+            used.add(dep);
+          }
         }
       }
     }
@@ -326,28 +331,66 @@ async function detectUsedDependencies(projectPath: string, dependencies: string[
 }
 
 /**
- * Find all source files in project
+ * Create dependency regex patterns once (performance optimization)
+ */
+function createDependencyPatterns(dependencies: string[]): Map<string, RegExp[]> {
+  const patterns = new Map<string, RegExp[]>();
+  
+  for (const dep of dependencies) {
+    const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    patterns.set(dep, [
+      new RegExp(`import .+ from ['"]${escaped}['"]`),
+      new RegExp(`import ['"]${escaped}['"]`),
+      new RegExp(`require\\(['"]${escaped}['"]\\)`),
+      new RegExp(`from ['"]${escaped}/`),
+    ]);
+  }
+  
+  return patterns;
+}
+
+/**
+ * Find all source files in project (optimized with parallel scanning)
  */
 async function findSourceFiles(projectPath: string): Promise<string[]> {
+  const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'build', '.git', 'coverage', '.next']);
+  const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
   const files: string[] = [];
   
-  async function scan(dir: string) {
+  async function scan(dir: string, depth: number = 0): Promise<void> {
+    // Limit recursion depth to prevent excessive scanning
+    if (depth > 10) return;
+    
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
+      
+      // Separate directories and files for parallel processing
+      const dirs: string[] = [];
       
       for (const entry of entries) {
         const fullPath = join(dir, entry.name);
         
-        // Skip node_modules, dist, build
         if (entry.isDirectory()) {
-          if (!['node_modules', 'dist', 'build', '.git'].includes(entry.name)) {
-            await scan(fullPath);
+          if (!EXCLUDED_DIRS.has(entry.name)) {
+            dirs.push(fullPath);
           }
-        } else if (entry.isFile()) {
-          // Include source files
-          if (entry.name.match(/\.(ts|tsx|js|jsx|mjs|cjs)$/)) {
-            files.push(fullPath);
-          }
+        } else if (entry.isFile() && SOURCE_EXTENSIONS.test(entry.name)) {
+          files.push(fullPath);
+        }
+      }
+      
+      // Scan subdirectories in parallel
+      if (dirs.length > 0) {
+        await Promise.all(dirs.map(d => scan(d, depth + 1)));
+      }
+    } catch (error) {
+      // Skip directories we can't read
+    }
+  }
+  
+  await scan(projectPath);
+  return files;
+}
         }
       }
     } catch (error) {

@@ -24,6 +24,16 @@ import type {
 } from '../types.js';
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const DEFAULT_CONFIDENCE = 0.85;
+const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_INTERVAL_MS = 100;
+const BENCHMARK_WARMUP_ITERATIONS = 10;
+const DEFAULT_BENCHMARK_ITERATIONS = 100;
+
+// ============================================================================
 // Mock Data Generators
 // ============================================================================
 
@@ -31,17 +41,18 @@ import type {
  * Generate mock intent analysis for testing
  */
 export function mockIntentAnalysis(overrides?: Partial<IntentAnalysis>): IntentAnalysis {
-  return {
+  const defaults: IntentAnalysis = {
     primaryIntent: 'code_generation',
-    confidence: 0.85 as any,
+    confidence: DEFAULT_CONFIDENCE as any,
     entities: [
       { type: 'language', value: 'TypeScript', position: { start: 10, end: 20 } },
       { type: 'framework', value: 'React', position: { start: 25, end: 30 } },
     ],
     keywords: ['create', 'component', 'typescript', 'react'],
     requiresClarification: false,
-    ...overrides,
   };
+  
+  return { ...defaults, ...overrides };
 }
 
 /**
@@ -218,22 +229,27 @@ export async function assertThrows(
     await fn();
     throw new Error('Expected function to throw, but it did not');
   } catch (error) {
-    if (error instanceof Error) {
-      if (expectedMessage) {
-        const matches =
-          typeof expectedMessage === 'string'
-            ? error.message.includes(expectedMessage)
-            : expectedMessage.test(error.message);
-        if (!matches) {
-          throw new Error(
-            `Expected error message "${error.message}" to match "${expectedMessage}"`
-          );
-        }
-      }
-      return error;
+    if (!(error instanceof Error)) {
+      throw error;
     }
-    throw error;
+    
+    if (expectedMessage && !matchesMessage(error.message, expectedMessage)) {
+      throw new Error(
+        `Expected error message "${error.message}" to match "${expectedMessage}"`
+      );
+    }
+    
+    return error;
   }
+}
+
+/**
+ * Helper to check if error message matches pattern
+ */
+function matchesMessage(message: string, pattern: string | RegExp): boolean {
+  return typeof pattern === 'string' 
+    ? message.includes(pattern)
+    : pattern.test(message);
 }
 
 /**
@@ -241,22 +257,34 @@ export async function assertThrows(
  */
 export async function waitFor(
   condition: () => boolean | Promise<boolean>,
-  options: {
-    timeout?: number;
-    interval?: number;
-  } = {}
+  options: { timeout?: number; interval?: number } = {}
 ): Promise<void> {
-  const { timeout = 5000, interval = 100 } = options;
+  const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
+  const interval = options.interval ?? DEFAULT_INTERVAL_MS;
   const start = Date.now();
 
-  while (Date.now() - start < timeout) {
+  while (!hasTimedOut(start, timeout)) {
     if (await condition()) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, interval));
+    await sleep(interval);
   }
 
   throw new Error(`Condition not met within ${timeout}ms`);
+}
+
+/**
+ * Helper to check if operation has timed out
+ */
+function hasTimedOut(startTime: number, timeout: number): boolean {
+  return Date.now() - startTime >= timeout;
+}
+
+/**
+ * Helper for async sleep
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -304,37 +332,56 @@ export interface BenchmarkResult {
 export async function benchmark(
   name: string,
   fn: () => Promise<void> | void,
-  iterations: number = 100
+  iterations: number = DEFAULT_BENCHMARK_ITERATIONS
 ): Promise<BenchmarkResult> {
-  const times: number[] = [];
+  const times = await runBenchmarkIterations(fn, iterations);
+  const stats = calculateBenchmarkStats(times, iterations);
+  
+  return {
+    name,
+    iterations,
+    ...stats,
+  };
+}
 
-  // Warmup
-  for (let i = 0; i < Math.min(10, iterations); i++) {
+/**
+ * Run benchmark iterations with warmup
+ */
+async function runBenchmarkIterations(
+  fn: () => Promise<void> | void,
+  iterations: number
+): Promise<number[]> {
+  // Warmup phase
+  const warmupCount = Math.min(BENCHMARK_WARMUP_ITERATIONS, iterations);
+  for (let i = 0; i < warmupCount; i++) {
     await fn();
   }
 
-  // Actual benchmark
+  // Measurement phase
+  const times: number[] = [];
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
     await fn();
     times.push(performance.now() - start);
   }
+  
+  return times;
+}
 
-  const totalMs = times.reduce((a, b) => a + b, 0);
+/**
+ * Calculate benchmark statistics
+ */
+function calculateBenchmarkStats(
+  times: number[],
+  iterations: number
+): Omit<BenchmarkResult, 'name' | 'iterations'> {
+  const totalMs = times.reduce((sum, time) => sum + time, 0);
   const avgMs = totalMs / iterations;
   const minMs = Math.min(...times);
   const maxMs = Math.max(...times);
   const opsPerSecond = 1000 / avgMs;
 
-  return {
-    name,
-    iterations,
-    totalMs,
-    avgMs,
-    minMs,
-    maxMs,
-    opsPerSecond,
-  };
+  return { totalMs, avgMs, minMs, maxMs, opsPerSecond };
 }
 
 /**
@@ -342,52 +389,76 @@ export async function benchmark(
  */
 export async function benchmarkCompare(
   tests: Array<{ name: string; fn: () => Promise<void> | void }>,
-  iterations: number = 100
+  iterations: number = DEFAULT_BENCHMARK_ITERATIONS
 ): Promise<BenchmarkResult[]> {
-  const results: BenchmarkResult[] = [];
-
-  for (const test of tests) {
-    const result = await benchmark(test.name, test.fn, iterations);
-    results.push(result);
-  }
+  const results = await Promise.all(
+    tests.map(test => benchmark(test.name, test.fn, iterations))
+  );
 
   // Sort by fastest first
-  results.sort((a, b) => a.avgMs - b.avgMs);
-
-  return results;
+  return results.sort((a, b) => a.avgMs - b.avgMs);
 }
 
 /**
  * Print benchmark results to console
  */
 export function printBenchmarkResults(results: BenchmarkResult[]): void {
+  if (results.length === 0) {
+    console.log('\n📊 No benchmark results to display\n');
+    return;
+  }
+
   console.log('\n📊 Benchmark Results:\n');
+  printBenchmarkTable(results);
+  printRelativePerformance(results);
+}
+
+/**
+ * Print formatted benchmark table
+ */
+function printBenchmarkTable(results: BenchmarkResult[]): void {
   console.log('│ Name                           │ Avg (ms) │ Min (ms) │ Max (ms) │ Ops/sec │');
   console.log('├────────────────────────────────┼──────────┼──────────┼──────────┼─────────┤');
 
   for (const result of results) {
-    const name = result.name.padEnd(30);
-    const avg = result.avgMs.toFixed(2).padStart(8);
-    const min = result.minMs.toFixed(2).padStart(8);
-    const max = result.maxMs.toFixed(2).padStart(8);
-    const ops = Math.round(result.opsPerSecond).toString().padStart(7);
-
-    console.log(`│ ${name} │ ${avg} │ ${min} │ ${max} │ ${ops} │`);
+    const row = formatBenchmarkRow(result);
+    console.log(row);
   }
 
   console.log('└────────────────────────────────┴──────────┴──────────┴──────────┴─────────┘\n');
+}
 
-  // Show relative performance
-  if (results.length > 1) {
-    const fastest = results[0]!;
-    console.log('🏆 Relative Performance:\n');
-    for (let i = 1; i < results.length; i++) {
-      const result = results[i]!;
-      const factor = (result.avgMs / fastest.avgMs).toFixed(2);
-      console.log(`   ${result.name}: ${factor}x slower than ${fastest.name}`);
-    }
-    console.log();
+/**
+ * Format a single benchmark result row
+ */
+function formatBenchmarkRow(result: BenchmarkResult): string {
+  const name = result.name.padEnd(30);
+  const avg = result.avgMs.toFixed(2).padStart(8);
+  const min = result.minMs.toFixed(2).padStart(8);
+  const max = result.maxMs.toFixed(2).padStart(8);
+  const ops = Math.round(result.opsPerSecond).toString().padStart(7);
+
+  return `│ ${name} │ ${avg} │ ${min} │ ${max} │ ${ops} │`;
+}
+
+/**
+ * Print relative performance comparison
+ */
+function printRelativePerformance(results: BenchmarkResult[]): void {
+  if (results.length <= 1) {
+    return;
   }
+
+  const fastest = results[0]!;
+  console.log('🏆 Relative Performance:\n');
+  
+  for (let i = 1; i < results.length; i++) {
+    const result = results[i]!;
+    const factor = (result.avgMs / fastest.avgMs).toFixed(2);
+    console.log(`   ${result.name}: ${factor}x slower than ${fastest.name}`);
+  }
+  
+  console.log();
 }
 
 // ============================================================================
