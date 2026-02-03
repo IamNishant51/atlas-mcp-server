@@ -30,16 +30,31 @@ export class OllamaClient {
     client;
     config;
     initialized = false;
+    initPromise = null;
+    pendingRequests = new Map();
     constructor(config = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.client = new Ollama({ host: this.config.baseUrl });
     }
     /**
      * Initialize the client and auto-detect model if not specified
+     * Uses promise deduplication to prevent concurrent initialization
      */
     async initialize() {
         if (this.initialized)
             return;
+        // Deduplicate concurrent init calls
+        if (this.initPromise)
+            return this.initPromise;
+        this.initPromise = this.doInitialize();
+        try {
+            await this.initPromise;
+        }
+        finally {
+            this.initPromise = null;
+        }
+    }
+    async doInitialize() {
         try {
             const models = await this.listModels();
             if (models.length === 0) {

@@ -10,22 +10,39 @@
 import { getOllamaClient, PromptTemplates } from './ollama.js';
 import { logger } from '../utils.js';
 // ============================================================================
+// Constants (Module-level for performance)
+// ============================================================================
+/** Stop words for keyword extraction - defined once at module level */
+const STOP_WORDS = new Set([
+    'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'to', 'of',
+    'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into',
+    'through', 'during', 'before', 'after', 'above', 'below', 'between',
+    'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+    'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other',
+    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+    'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because', 'as', 'until',
+    'while', 'although', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'it', 'its',
+    'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'please',
+]);
+// ============================================================================
 // Intent Classification
 // ============================================================================
 /**
- * Keywords that indicate specific intent types
+ * Keywords that indicate specific intent types (as Sets for O(1) lookup)
  */
 const INTENT_KEYWORDS = {
-    code_generation: ['create', 'write', 'generate', 'implement', 'build', 'make', 'add'],
-    code_review: ['review', 'check', 'analyze', 'audit', 'inspect', 'evaluate'],
-    debugging: ['fix', 'debug', 'error', 'bug', 'issue', 'problem', 'broken', 'not working'],
-    refactoring: ['refactor', 'improve', 'clean', 'restructure', 'reorganize', 'optimize'],
-    explanation: ['explain', 'what is', 'how does', 'why', 'understand', 'describe'],
-    documentation: ['document', 'docs', 'readme', 'comment', 'jsdoc', 'docstring'],
-    testing: ['test', 'spec', 'unit test', 'integration test', 'coverage', 'mock'],
-    architecture: ['architecture', 'design', 'structure', 'pattern', 'organize', 'system'],
-    general_question: ['?', 'can you', 'is it', 'should i', 'what if'],
-    unknown: [],
+    code_generation: new Set(['create', 'write', 'generate', 'implement', 'build', 'make', 'add']),
+    code_review: new Set(['review', 'check', 'analyze', 'audit', 'inspect', 'evaluate']),
+    debugging: new Set(['fix', 'debug', 'error', 'bug', 'issue', 'problem', 'broken', 'not working']),
+    refactoring: new Set(['refactor', 'improve', 'clean', 'restructure', 'reorganize', 'optimize']),
+    explanation: new Set(['explain', 'what is', 'how does', 'why', 'understand', 'describe']),
+    documentation: new Set(['document', 'docs', 'readme', 'comment', 'jsdoc', 'docstring']),
+    testing: new Set(['test', 'spec', 'unit test', 'integration test', 'coverage', 'mock']),
+    architecture: new Set(['architecture', 'design', 'structure', 'pattern', 'organize', 'system']),
+    general_question: new Set(['?', 'can you', 'is it', 'should i', 'what if']),
+    unknown: new Set(),
 };
 /**
  * Common programming entities for extraction
@@ -81,11 +98,19 @@ export async function analyzeIntent(query) {
  */
 function heuristicAnalysis(query) {
     const normalizedQuery = query.toLowerCase();
+    // Early return for empty/very short queries
+    if (normalizedQuery.length < 3) {
+        return createUnknownIntent(query);
+    }
     // Determine primary intent from keywords
     let primaryIntent = 'unknown';
     let maxScore = 0;
-    for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
-        const score = keywords.filter((kw) => normalizedQuery.includes(kw)).length;
+    for (const [intent, keywordSet] of Object.entries(INTENT_KEYWORDS)) {
+        let score = 0;
+        for (const kw of keywordSet) {
+            if (normalizedQuery.includes(kw))
+                score++;
+        }
         if (score > maxScore) {
             maxScore = score;
             primaryIntent = intent;
@@ -113,6 +138,19 @@ function heuristicAnalysis(query) {
         keywords,
         requiresClarification,
         clarifyingQuestions,
+    };
+}
+/**
+ * Create an unknown intent result for edge cases
+ */
+function createUnknownIntent(query) {
+    return {
+        primaryIntent: 'unknown',
+        confidence: 0.1,
+        entities: [],
+        keywords: extractKeywords(query),
+        requiresClarification: true,
+        clarifyingQuestions: ['What would you like me to help you with?'],
     };
 }
 /**
@@ -186,24 +224,11 @@ function extractEntities(query) {
  * Extract significant keywords from query
  */
 function extractKeywords(query) {
-    const stopWords = new Set([
-        'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-        'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'to', 'of',
-        'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into',
-        'through', 'during', 'before', 'after', 'above', 'below', 'between',
-        'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
-        'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other',
-        'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
-        'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because', 'as', 'until',
-        'while', 'although', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'it', 'its',
-        'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'please',
-    ]);
     return query
         .toLowerCase()
         .replace(/[^\w\s]/g, ' ')
         .split(/\s+/)
-        .filter((word) => word.length > 2 && !stopWords.has(word))
+        .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
         .slice(0, 10);
 }
 /**

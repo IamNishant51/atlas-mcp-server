@@ -40,28 +40,33 @@ export async function critiqueVariants(variants) {
 async function critiqueVariant(variant) {
     const client = getOllamaClient();
     const prompt = buildCritiquePrompt(variant);
-    const response = await client.generateJson(prompt, {
-        systemPrompt: PromptTemplates.codeCritique,
-        temperature: 0.3, // Lower temp for analytical work
-        maxTokens: 2048,
-    });
-    if (response.data) {
-        const assessment = normalizeAssessment(response.data.assessment);
-        const issues = response.data.issues.map((issue) => ({
-            severity: normalizeSeverity(issue.severity),
-            category: normalizeCategory(issue.category),
-            description: issue.description,
-            location: issue.location,
-            suggestedFix: issue.suggestedFix,
-        }));
-        return {
-            variantId: variant.id,
-            qualityScore: calculateQualityScore(assessment, issues),
-            assessment,
-            issues,
-            suggestions: response.data.suggestions,
-            isViable: response.data.isViable,
-        };
+    try {
+        const response = await client.generateJson(prompt, {
+            systemPrompt: PromptTemplates.codeCritique,
+            temperature: 0.3, // Lower temp for analytical work
+            maxTokens: 2048,
+        });
+        if (response.data) {
+            const assessment = normalizeAssessment(response.data.assessment);
+            const issues = response.data.issues.map((issue) => ({
+                severity: normalizeSeverity(issue.severity),
+                category: normalizeCategory(issue.category),
+                description: issue.description,
+                location: issue.location,
+                suggestedFix: issue.suggestedFix,
+            }));
+            return {
+                variantId: variant.id,
+                qualityScore: calculateQualityScore(assessment, issues),
+                assessment,
+                issues,
+                suggestions: response.data.suggestions,
+                isViable: response.data.isViable,
+            };
+        }
+    }
+    catch (error) {
+        logger.warn({ error }, 'Critique LLM call failed, using fallback');
     }
     // Fallback critique
     return fallbackCritique(variant);

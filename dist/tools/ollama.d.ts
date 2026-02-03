@@ -17,11 +17,15 @@ export declare class OllamaClient {
     private client;
     private config;
     private initialized;
+    private initPromise;
+    private pendingRequests;
     constructor(config?: Partial<OllamaConfig>);
     /**
      * Initialize the client and auto-detect model if not specified
+     * Uses promise deduplication to prevent concurrent initialization
      */
     initialize(): Promise<void>;
+    private doInitialize;
     /**
      * Check if Ollama service is available and initialize
      */

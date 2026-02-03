@@ -18,6 +18,52 @@ import { logger, getErrorMessage } from '../utils.js';
 
 const DEFAULT_COMMIT_LIMIT = 10;
 
+// Git instance cache to avoid creating new instances for the same repo
+const gitInstanceCache = new Map<string, { git: SimpleGit; lastAccess: number }>();
+const CACHE_TTL_MS = 60000; // 1 minute cache
+const MAX_CACHE_SIZE = 10;
+
+/**
+ * Get or create a cached git instance for a repository
+ */
+function getGitInstance(repoPath: string): SimpleGit {
+  const now = Date.now();
+  const cached = gitInstanceCache.get(repoPath);
+  
+  if (cached) {
+    cached.lastAccess = now;
+    return cached.git;
+  }
+  
+  // Cleanup old entries if cache is full
+  if (gitInstanceCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = [...gitInstanceCache.entries()]
+      .sort((a, b) => a[1].lastAccess - b[1].lastAccess)[0]?.[0];
+    if (oldestKey) gitInstanceCache.delete(oldestKey);
+  }
+  
+  const git = simpleGit(repoPath);
+  gitInstanceCache.set(repoPath, { git, lastAccess: now });
+  return git;
+}
+
+/**
+ * Wrapper for git operations with consistent error handling
+ */
+async function withGitErrorHandling<T>(
+  operation: string,
+  context: Record<string, unknown>,
+  fn: () => Promise<T>,
+  fallback: T
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    logger.error({ error: getErrorMessage(error), ...context }, `Failed to ${operation}`);
+    return fallback;
+  }
+}
+
 // ============================================================================
 // Git Context
 // ============================================================================
@@ -29,61 +75,65 @@ export async function getGitContext(
   repoPath: string,
   commitLimit: number = DEFAULT_COMMIT_LIMIT
 ): Promise<GitContext | null> {
-  try {
-    const git = simpleGit(repoPath);
+  return withGitErrorHandling(
+    'get git context',
+    { repoPath },
+    async () => {
+      const git = getGitInstance(repoPath);
 
-    // Check if this is a git repository
-    const isRepo = await git.checkIsRepo();
-    if (!isRepo) {
-      logger.debug({ repoPath }, 'Not a git repository');
-      return null;
-    }
+      // Check if this is a git repository
+      const isRepo = await git.checkIsRepo();
+      if (!isRepo) {
+        logger.debug({ repoPath }, 'Not a git repository');
+        return null;
+      }
 
-    // Gather all context in parallel
-    const [branch, status, log, remotes] = await Promise.all([
-      git.branch(),
-      git.status(),
-      git.log({ maxCount: commitLimit }),
-      git.getRemotes(true),
-    ]);
+      // Gather all context in parallel
+      const [branch, status, log, remotes] = await Promise.all([
+        git.branch(),
+        git.status(),
+        git.log({ maxCount: commitLimit }),
+        git.getRemotes(true),
+      ]);
 
-    const context: GitContext = {
-      currentBranch: branch.current,
-      recentCommits: formatCommits(log),
-      uncommittedChanges: formatChanges(status),
-      remoteUrl: remotes[0]?.refs?.fetch,
-      isDirty: !status.isClean(),
-    };
+      const context: GitContext = {
+        currentBranch: branch.current,
+        recentCommits: formatCommits(log),
+        uncommittedChanges: formatChanges(status),
+        remoteUrl: remotes[0]?.refs?.fetch,
+        isDirty: !status.isClean(),
+      };
 
-    logger.debug(
-      {
-        branch: context.currentBranch,
-        commits: context.recentCommits.length,
-        changes: context.uncommittedChanges.length,
-        isDirty: context.isDirty,
-      },
-      'Git context retrieved'
-    );
+      logger.debug(
+        {
+          branch: context.currentBranch,
+          commits: context.recentCommits.length,
+          changes: context.uncommittedChanges.length,
+          isDirty: context.isDirty,
+        },
+        'Git context retrieved'
+      );
 
-    return context;
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error), repoPath }, 'Failed to get git context');
-    return null;
-  }
+      return context;
+    },
+    null
+  );
 }
 
 /**
  * Get the diff for uncommitted changes
  */
 export async function getUncommittedDiff(repoPath: string): Promise<string | null> {
-  try {
-    const git = simpleGit(repoPath);
-    const diff = await git.diff();
-    return diff || null;
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error) }, 'Failed to get uncommitted diff');
-    return null;
-  }
+  return withGitErrorHandling(
+    'get uncommitted diff',
+    { repoPath },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const diff = await git.diff();
+      return diff || null;
+    },
+    null
+  );
 }
 
 /**
@@ -93,14 +143,16 @@ export async function getCommitDiff(
   repoPath: string,
   commitHash: string
 ): Promise<string | null> {
-  try {
-    const git = simpleGit(repoPath);
-    const diff = await git.show([commitHash, '--pretty=format:', '--patch']);
-    return diff || null;
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error), commitHash }, 'Failed to get commit diff');
-    return null;
-  }
+  return withGitErrorHandling(
+    'get commit diff',
+    { repoPath, commitHash },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const diff = await git.show([commitHash, '--pretty=format:', '--patch']);
+      return diff || null;
+    },
+    null
+  );
 }
 
 /**
@@ -110,14 +162,16 @@ export async function getFileBlame(
   repoPath: string,
   filePath: string
 ): Promise<BlameInfo[] | null> {
-  try {
-    const git = simpleGit(repoPath);
-    const blame = await git.raw(['blame', '--line-porcelain', filePath]);
-    return parseBlame(blame);
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error), filePath }, 'Failed to get file blame');
-    return null;
-  }
+  return withGitErrorHandling(
+    'get file blame',
+    { repoPath, filePath },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const blame = await git.raw(['blame', '--line-porcelain', filePath]);
+      return parseBlame(blame);
+    },
+    null
+  );
 }
 
 /**
@@ -128,17 +182,19 @@ export async function getFileHistory(
   filePath: string,
   limit: number = 10
 ): Promise<GitCommit[]> {
-  try {
-    const git = simpleGit(repoPath);
-    const log = await git.log({
-      file: filePath,
-      maxCount: limit,
-    });
-    return formatCommits(log);
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error), filePath }, 'Failed to get file history');
-    return [];
-  }
+  return withGitErrorHandling(
+    'get file history',
+    { repoPath, filePath },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const log = await git.log({
+        file: filePath,
+        maxCount: limit,
+      });
+      return formatCommits(log);
+    },
+    []
+  );
 }
 
 /**
@@ -149,28 +205,32 @@ export async function getChangedFiles(
   fromRef: string,
   toRef: string = 'HEAD'
 ): Promise<string[]> {
-  try {
-    const git = simpleGit(repoPath);
-    const result = await git.raw(['diff', '--name-only', fromRef, toRef]);
-    return result.split('\n').filter(Boolean);
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error), fromRef, toRef }, 'Failed to get changed files');
-    return [];
-  }
+  return withGitErrorHandling(
+    'get changed files',
+    { repoPath, fromRef, toRef },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const result = await git.raw(['diff', '--name-only', fromRef, toRef]);
+      return result.split('\n').filter(Boolean);
+    },
+    []
+  );
 }
 
 /**
  * Get the current HEAD commit hash
  */
 export async function getHeadCommit(repoPath: string): Promise<string | null> {
-  try {
-    const git = simpleGit(repoPath);
-    const result = await git.revparse(['HEAD']);
-    return result.trim();
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error) }, 'Failed to get HEAD commit');
-    return null;
-  }
+  return withGitErrorHandling(
+    'get HEAD commit',
+    { repoPath },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const result = await git.revparse(['HEAD']);
+      return result.trim();
+    },
+    null
+  );
 }
 
 /**
@@ -181,21 +241,23 @@ export async function listBranches(repoPath: string): Promise<{
   local: string[];
   remote: string[];
 }> {
-  try {
-    const git = simpleGit(repoPath);
-    const branches = await git.branch(['-a']);
-    
-    return {
-      current: branches.current,
-      local: branches.all.filter((b: string) => !b.startsWith('remotes/')),
-      remote: branches.all
-        .filter((b: string) => b.startsWith('remotes/'))
-        .map((b: string) => b.replace(/^remotes\//, '')),
-    };
-  } catch (error) {
-    logger.error({ error: getErrorMessage(error) }, 'Failed to list branches');
-    return { current: '', local: [], remote: [] };
-  }
+  return withGitErrorHandling(
+    'list branches',
+    { repoPath },
+    async () => {
+      const git = getGitInstance(repoPath);
+      const branches = await git.branch(['-a']);
+      
+      return {
+        current: branches.current,
+        local: branches.all.filter((b: string) => !b.startsWith('remotes/')),
+        remote: branches.all
+          .filter((b: string) => b.startsWith('remotes/'))
+          .map((b: string) => b.replace(/^remotes\//, '')),
+      };
+    },
+    { current: '', local: [], remote: [] }
+  );
 }
 
 // ============================================================================
@@ -216,23 +278,28 @@ function formatCommits(log: LogResult): GitCommit[] {
 }
 
 /**
- * Format git status to our GitChange type
+ * Format git status to our GitChange type (optimized with Sets)
  */
 function formatChanges(status: StatusResult): GitChange[] {
   const changes: GitChange[] = [];
+  const stagedSet = new Set(status.staged);
+  const createdSet = new Set(status.created);
+  const notAddedSet = new Set(status.not_added);
+  const deletedSet = new Set(status.deleted);
+  const renamedToSet = new Set(status.renamed.map((r: { to: string }) => r.to));
 
   // Staged changes
   for (const file of status.staged) {
     changes.push({
       path: file,
-      type: getChangeType(status, file, true),
+      type: getChangeTypeOptimized(file, createdSet, notAddedSet, deletedSet, renamedToSet),
       staged: true,
     });
   }
 
   // Unstaged changes (modified)
   for (const file of status.modified) {
-    if (!status.staged.includes(file)) {
+    if (!stagedSet.has(file)) {
       changes.push({
         path: file,
         type: 'modified',
@@ -252,7 +319,7 @@ function formatChanges(status: StatusResult): GitChange[] {
 
   // Deleted files
   for (const file of status.deleted) {
-    if (!status.staged.includes(file)) {
+    if (!stagedSet.has(file)) {
       changes.push({
         path: file,
         type: 'deleted',
@@ -265,22 +332,18 @@ function formatChanges(status: StatusResult): GitChange[] {
 }
 
 /**
- * Determine change type from status
+ * Determine change type using Sets for O(1) lookup
  */
-function getChangeType(
-  status: StatusResult,
+function getChangeTypeOptimized(
   file: string,
-  _staged: boolean
+  createdSet: Set<string>,
+  notAddedSet: Set<string>,
+  deletedSet: Set<string>,
+  renamedToSet: Set<string>
 ): GitChange['type'] {
-  if (status.created.includes(file) || status.not_added.includes(file)) {
-    return 'added';
-  }
-  if (status.deleted.includes(file)) {
-    return 'deleted';
-  }
-  if (status.renamed.some((r: { to: string }) => r.to === file)) {
-    return 'renamed';
-  }
+  if (createdSet.has(file) || notAddedSet.has(file)) return 'added';
+  if (deletedSet.has(file)) return 'deleted';
+  if (renamedToSet.has(file)) return 'renamed';
   return 'modified';
 }
 

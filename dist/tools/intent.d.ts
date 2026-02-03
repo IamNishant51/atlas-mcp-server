@@ -9,9 +9,9 @@
  */
 import type { IntentAnalysis, IntentType, ExtractedEntity } from '../types.js';
 /**
- * Keywords that indicate specific intent types
+ * Keywords that indicate specific intent types (as Sets for O(1) lookup)
  */
-declare const INTENT_KEYWORDS: Record<IntentType, string[]>;
+declare const INTENT_KEYWORDS: Record<IntentType, Set<string>>;
 /**
  * Common programming entities for extraction
  */

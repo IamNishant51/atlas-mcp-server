@@ -3,7 +3,7 @@
  * 
  * Supports multiple LLM backends with a unified interface:
  * - Ollama (local, free)
- * - OpenAI (GPT-4, GPT-4-turbo, GPT-3.5-turbo)
+ * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-4-turbo, GPT-3.5-turbo)
  * - Anthropic (Claude 3.5, Claude 3)
  * 
  * Auto-detects available providers and falls back gracefully.
@@ -184,7 +184,7 @@ class OpenAIProvider extends LLMProvider {
 
   constructor(config: ProviderConfig) {
     super();
-    this._model = config.openaiModel ?? 'gpt-4-turbo-preview';
+    this._model = config.openaiModel ?? 'gpt-5.2-codex';
     this.maxRetries = config.maxRetries ?? 3;
     
     this.client = new OpenAI({
@@ -363,6 +363,95 @@ class NoLLMProvider extends LLMProvider {
 }
 
 // ============================================================================
+// MCP Sampling Provider (Delegates to Client)
+// ============================================================================
+
+import { CreateMessageRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+
+let mcpServerInstance: Server | null = null;
+
+export function setMcpServerInstance(server: Server) {
+  mcpServerInstance = server;
+}
+
+class McpSamplingProvider extends LLMProvider {
+  readonly type: ProviderType = 'auto'; // Acts as auto/sampling
+  readonly model: string = 'client-sampling';
+
+  async isAvailable(): Promise<boolean> {
+    // We assume availability if we are in MCP mode and have a server instance
+    return !!mcpServerInstance; 
+  }
+
+  async complete(prompt: string, options: CompletionOptions = {}): Promise<CompletionResponse> {
+    if (!mcpServerInstance) {
+      throw new Error('MCP Server instance not initialized for sampling');
+    }
+
+    const startTime = performance.now();
+    
+    // Construct the sampling request
+    // Note: The MCP SDK might not expose CreateMessageRequestSchema directly in all versions, 
+    // but we use the standard structure.
+    try {
+      // Construct the sampling request with safe type handling
+      const messages: { role: 'user' | 'assistant'; content: { type: 'text'; text: string } }[] = [];
+      
+      const userMessageText = options.systemPrompt 
+        ? `System: ${options.systemPrompt}\n\nUser: ${prompt}` 
+        : prompt;
+
+      messages.push({ 
+        role: 'user', 
+        content: { type: 'text', text: userMessageText } 
+      });
+
+      // Using 'as any' cast here because the SDK types for 'sampling/createMessage' 
+      // might be stricter than the actual runtime behavior or dependent on SDK version.
+      // We define the expected return shape explicitly for safety.
+      const result = await mcpServerInstance.request(
+        {
+          method: 'sampling/createMessage',
+          params: {
+            messages,
+            maxTokens: options.maxTokens ?? 2048,
+            temperature: options.temperature ?? 0.7,
+          }
+        },
+        CreateMessageRequestSchema
+      ) as unknown as { model: string; content: { type: string; text?: string } };
+
+      const content = result.content;
+      const text = (content && content.type === 'text' && content.text) ? content.text : '';
+
+      return {
+        text,
+        provider: 'auto',
+        model: result.model || 'client-model',
+        durationMs: Math.round(performance.now() - startTime),
+      };
+
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      logger.error({ error: errorMessage }, 'Sampling request failed in McpSamplingProvider');
+      throw new Error(`McpSamplingProvider failed: ${errorMessage}`);
+    }
+  }
+
+  async completeJson<T>(prompt: string, options: CompletionOptions = {}): Promise<{ data: T | null; raw: string }> {
+    const jsonPrompt = `${prompt}\n\nIMPORTANT: Respond with valid JSON only. Do not wrap in markdown code blocks.`;
+    try {
+        const response = await this.complete(jsonPrompt, { ...options, temperature: options.temperature ?? 0.3 });
+        return { data: extractJson<T>(response.text), raw: response.text };
+    } catch (error) {
+        logger.error({ error: getErrorMessage(error) }, 'JSON completion failed in McpSamplingProvider');
+        return { data: null, raw: '' };
+    }
+  }
+}
+
+// ============================================================================
 // Provider Factory
 // ============================================================================
 
@@ -409,7 +498,7 @@ export async function getActiveProvider(config?: ProviderConfig): Promise<LLMPro
     
     // OpenAI
     openaiApiKey: process.env['OPENAI_API_KEY'],
-    openaiModel: process.env['OPENAI_MODEL'] ?? 'gpt-4-turbo-preview',
+    openaiModel: process.env['OPENAI_MODEL'] ?? 'gpt-5.2-codex',
     openaiBaseUrl: process.env['OPENAI_BASE_URL'],
     
     // Anthropic
@@ -460,6 +549,14 @@ export async function getActiveProvider(config?: ProviderConfig): Promise<LLMPro
       logger.info({ provider: name, model: provider.model }, 'Auto-detected provider');
       return provider;
     }
+  }
+
+  // If no external LLM is configured/available, check if we can use MCP Sampling (delegated to client)
+  if (mcpServerInstance) {
+    const samplingProvider = new McpSamplingProvider();
+    activeProvider = samplingProvider;
+    logger.info({ provider: 'auto', model: 'client-sampling' }, 'Using MCP Sampling (delegated to client)');
+    return samplingProvider;
   }
 
   // No external LLM available - use fallback mode

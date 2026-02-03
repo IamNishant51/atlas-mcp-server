@@ -23,7 +23,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError, } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { logger, createTimer, safeStringify } from './utils.js';
-import { getActiveProvider, checkProviders, isNoLLMMode } from './providers/index.js';
+import { getActiveProvider, checkProviders, isNoLLMMode, setMcpServerInstance } from './providers/index.js';
 // Provider cache to avoid repeated checks
 let cachedProvider = null;
 let providerCacheTime = 0;
@@ -70,6 +70,7 @@ const TOOLS = [
             required: ['message'],
         },
     },
+    // ... (rest of tools list unchanged)
     {
         name: 'atlas_context',
         description: 'Gather context about a project or codebase. Analyzes files, dependencies, and project structure.',
@@ -352,7 +353,7 @@ async function handleTool(name, args) {
                     currentModel: provider.model,
                     fallbackMode,
                     message: fallbackMode
-                        ? 'Running in fallback mode (heuristics only). Configure OLLAMA_BASE_URL, OPENAI_API_KEY, or ANTHROPIC_API_KEY for AI-powered analysis.'
+                        ? 'Running in fallback mode (heuristics only).'
                         : 'LLM provider active and ready.',
                 };
             }
@@ -376,6 +377,8 @@ async function main() {
             tools: {},
         },
     });
+    // Register the server instance for Sampling capabilities
+    setMcpServerInstance(server);
     // List available tools
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         return { tools: TOOLS };

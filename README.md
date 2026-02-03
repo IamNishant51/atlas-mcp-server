@@ -1,175 +1,86 @@
-# Atlas MCP Server
 
-A powerful Model Context Protocol (MCP) server featuring a multi-stage AI pipeline for intelligent code generation. Works with **any LLM provider** (Ollama, OpenAI, Anthropic) and **any MCP-compatible IDE** (Cursor, GitHub Copilot, Claude Desktop, Windsurf, and more).
+# Atlas MCP Server (`atlas-pipeline-mcp`)
 
-## 🚀 Features
+**The Agentic AI Pipeline for your IDE.**
+Works natively with **Cursor**, **GitHub Copilot**, **Windsurf**, and **VS Code**.
 
-- **7-Stage AI Pipeline**: Intent → Context → Git → Decompose → Variants → Critique → Optimize
-- **Multi-Provider Support**: Automatically detects and uses Ollama, OpenAI, or Anthropic
-- **IDE Agnostic**: Works with any MCP-compatible editor
-- **Git Integration**: Analyzes repository history for context-aware code generation
-- **Quality Assurance**: Built-in critique and optimization stages
+Atlas is an MCP server that gives your IDE "Agentic Superpowers". Instead of just creating code, it enables a full analysis pipeline:
+**Intent → Context → Decomposition → Variants → Critique → Optimization**.
 
-## 📦 Installation
+---
 
-### From GitHub (Recommended)
+## Key Features
 
-```bash
-# Clone the repository
-git clone https://github.com/IamNishant51/atlas-mcp-server.git
-cd atlas-mcp-server
+- **Zero Config**: No API keys required. It uses your IDE's built-in AI (Copilot/Cursor) for analysis.
+- **Agentic Workflow**: Breaks down specific tasks into a DAG (Directed Acyclic Graph) of subtasks.
+- **Optimization Loop**: Generates variants, critiques them, and produces a final optimized solution.
+- **Context Aware**: Deeply analyzes project structure, file dependencies, and git history.
 
-# Install dependencies
-npm install
+---
 
-# Build
-npm run build
-```
+## Installation (1-Click Setup)
 
-### From npm
+### 1. Install Globally
+Open your terminal and run the following command to install the package globally via NPM:
 
 ```bash
 npm install -g atlas-pipeline-mcp
 ```
 
-## ⚙️ Configuration
-
-### Environment Variables
-
-Create a `.env` file or set environment variables:
+### 2. Run Auto-Setup
+Run the setup command to automatically configure your IDE (works for Cursor and VS Code):
 
 ```bash
-# For Ollama (local, free)
-OLLAMA_BASE_URL=http://localhost:11434
-
-# For OpenAI
-OPENAI_API_KEY=your-openai-key
-
-# For Anthropic
-ANTHROPIC_API_KEY=your-anthropic-key
+atlas-mcp-setup
 ```
 
-The server auto-detects available providers in this order: Anthropic → OpenAI → Ollama
+### 3. Restart IDE
+Restart your editor. You should see the Atlas server connected in your MCP settings.
 
-### IDE Configuration
+---
 
-#### Claude Desktop
+## How to Use (Cheat Sheet)
 
-Add to `claude_desktop_config.json`:
+Once installed, simply chat with your AI Assistant (Copilot Chat or Cursor Chat). The server automatically activates based on your intent.
+
+| Goal | What to Ask | Tool Used |
+| :--- | :--- | :--- |
+| **Fix a complex file** | "Run the **pipeline** on `utils.ts` to refactor it." | `atlas_pipeline` |
+| **Plan a feature** | "**Decompose** the task of adding JWT auth." | `atlas_decompose` |
+| **Explore ideas** | "Generate **3 variants** for this button component." | `atlas_variants` |
+| **Review Code** | "**Critique** this code for security issues." | `atlas_critique` |
+| **Polish Code** | "**Optimize** this function based on best practices." | `atlas_optimize` |
+| **Project Context** | "Analyze the **project context** and dependencies." | `atlas_context` |
+
+---
+
+## Advanced Integration (Optional)
+
+### Using Local LLMs
+If you prefer running models locally (e.g. Ollama) or want to use your own API keys instead of your IDE's subscription, you can manually configure the server in your settings:
 
 ```json
-{
-  "mcpServers": {
-    "atlas": {
-      "command": "node",
-      "args": ["/path/to/atlas-mcp-server/dist/mcp.js"]
-    }
+"atlas": {
+  "command": "npx",
+  "args": ["-y", "atlas-pipeline-mcp"],
+  "env": {
+    "OLLAMA_BASE_URL": "http://localhost:11434",
+    "OPENAI_API_KEY": "sk-...",
+    "ANTHROPIC_API_KEY": "sk-..."
   }
 }
 ```
 
-#### Cursor
+*Note: If no keys are provided, Atlas defaults to **Client Sampling mode**, delegating generation to your IDE.*
 
-Add to `.cursor/mcp.json`:
+---
 
-```json
-{
-  "mcpServers": {
-    "atlas": {
-      "command": "node",
-      "args": ["/path/to/atlas-mcp-server/dist/mcp.js"]
-    }
-  }
-}
-```
+## Contributing
 
-#### VS Code with GitHub Copilot
+We welcome contributions to improve the Atlas pipeline.
+- **Repository**: [github.com/IamNishant51/atlas-mcp-server](https://github.com/IamNishant51/atlas-mcp-server)
+- **Issues**: Report bugs on GitHub.
 
-Add to `.vscode/mcp.json`:
+---
 
-```json
-{
-  "servers": {
-    "atlas": {
-      "command": "node",
-      "args": ["/path/to/atlas-mcp-server/dist/mcp.js"]
-    }
-  }
-}
-```
-
-#### Windsurf
-
-Add to `~/.windsurf/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "atlas": {
-      "command": "node",
-      "args": ["/path/to/atlas-mcp-server/dist/mcp.js"]
-    }
-  }
-}
-```
-
-## 🛠️ Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `atlas_intent` | Analyze user intent and extract requirements |
-| `atlas_context` | Gather project context (files, dependencies, patterns) |
-| `atlas_git` | Analyze git history for coding patterns |
-| `atlas_decompose` | Break down tasks into subtasks |
-| `atlas_variants` | Generate multiple code implementation variants |
-| `atlas_critique` | Evaluate code quality and provide feedback |
-| `atlas_optimize` | Optimize code based on critique feedback |
-| `atlas_pipeline` | Run the complete 7-stage pipeline |
-| `atlas_providers` | List available LLM providers |
-
-## 📊 Pipeline Stages
-
-1. **Intent** - Understands what you want to build
-2. **Context** - Gathers project structure, dependencies, and patterns
-3. **Git** - Analyzes commit history for coding conventions
-4. **Decompose** - Breaks complex tasks into manageable subtasks
-5. **Variants** - Generates multiple implementation approaches
-6. **Critique** - Evaluates each variant for quality and correctness
-7. **Optimize** - Refines the best variant based on feedback
-
-## 🏃 Running
-
-### MCP Mode (for IDEs)
-
-```bash
-npm run start:mcp
-# or
-node dist/mcp.js
-```
-
-### HTTP Server Mode
-
-```bash
-npm start
-# or
-node dist/server.js
-```
-
-The HTTP server runs on port 3000 with these endpoints:
-- `GET /health` - Health check
-- `GET /api/info` - Server information
-- `GET /api/models` - Available LLM models
-- `POST /api/pipeline` - Run the full pipeline
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 🔗 Links
-
-- **GitHub**: https://github.com/IamNishant51/atlas-mcp-server
-- **MCP Protocol**: https://modelcontextprotocol.io
+*Built by Antigravity*

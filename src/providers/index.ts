@@ -3,7 +3,7 @@
  * 
  * Unified interface for multiple LLM providers:
  * - Ollama (local)
- * - OpenAI (GPT-4, GPT-3.5)
+ * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-3.5)
  * - Anthropic (Claude)
  * - Fallback (no-LLM heuristic mode)
  * 
@@ -18,6 +18,7 @@ export {
   resetProvider,
   checkProviders,
   isNoLLMMode,
+  setMcpServerInstance,
 } from './llm-provider.js';
 
 export type {

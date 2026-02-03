@@ -3,7 +3,7 @@
  *
  * Supports multiple LLM backends with a unified interface:
  * - Ollama (local, free)
- * - OpenAI (GPT-4, GPT-4-turbo, GPT-3.5-turbo)
+ * - OpenAI (GPT-5.2-Codex, GPT-4, GPT-4-turbo, GPT-3.5-turbo)
  * - Anthropic (Claude 3.5, Claude 3)
  *
  * Auto-detects available providers and falls back gracefully.
@@ -49,6 +49,8 @@ export declare abstract class LLMProvider {
         raw: string;
     }>;
 }
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+export declare function setMcpServerInstance(server: Server): void;
 /**
  * Check if we're running in no-LLM mode
  */

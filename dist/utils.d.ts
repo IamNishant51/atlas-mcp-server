@@ -49,7 +49,7 @@ export declare function isError(value: unknown): value is Error;
  */
 export declare function getErrorMessage(error: unknown): string;
 /**
- * Generate a unique ID for tracking
+ * Generate a unique ID for tracking using crypto for better randomness
  */
 export declare function generateId(): string;
 /**
@@ -124,7 +124,7 @@ export declare function parallelMap<T, R>(items: T[], fn: (item: T, index: numbe
  */
 export declare function debounce<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, delayMs: number): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
 /**
- * Memoize async function with TTL
+ * Memoize async function with TTL and automatic cleanup
  */
-export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, ttlMs?: number, keyFn?: (...args: Parameters<T>) => string): T;
+export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, ttlMs?: number, keyFn?: (...args: Parameters<T>) => string, maxCacheSize?: number): T;
 //# sourceMappingURL=utils.d.ts.map

@@ -30,7 +30,7 @@ import {
 import { z } from 'zod';
 
 import { logger, createTimer, safeStringify } from './utils.js';
-import { getActiveProvider, checkProviders, isNoLLMMode } from './providers/index.js';
+import { getActiveProvider, checkProviders, isNoLLMMode, setMcpServerInstance } from './providers/index.js';
 
 // Provider cache to avoid repeated checks
 let cachedProvider: Awaited<ReturnType<typeof getActiveProvider>> | null = null;
@@ -82,6 +82,7 @@ const TOOLS = [
       required: ['message'],
     },
   },
+  // ... (rest of tools list unchanged)
   {
     name: 'atlas_context',
     description: 'Gather context about a project or codebase. Analyzes files, dependencies, and project structure.',
@@ -280,7 +281,7 @@ function createCritiqueFromFeedback(variantId: string, feedback?: string): Criti
     },
     issues: feedback 
       ? [{ 
-          severity: 'major' as const, 
+        severity: 'major' as const, 
           category: 'correctness' as const, 
           description: feedback,
         }] 
@@ -386,7 +387,7 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
           currentModel: provider.model,
           fallbackMode,
           message: fallbackMode 
-            ? 'Running in fallback mode (heuristics only). Configure OLLAMA_BASE_URL, OPENAI_API_KEY, or ANTHROPIC_API_KEY for AI-powered analysis.'
+            ? 'Running in fallback mode (heuristics only).'
             : 'LLM provider active and ready.',
         };
       }
@@ -415,6 +416,9 @@ async function main(): Promise<void> {
       },
     }
   );
+
+  // Register the server instance for Sampling capabilities
+  setMcpServerInstance(server);
 
   // List available tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {

@@ -63,47 +63,51 @@ async function critiqueVariant(variant: SolutionVariant): Promise<Critique> {
 
   const prompt = buildCritiquePrompt(variant);
 
-  const response = await client.generateJson<{
-    assessment: {
-      correctness: number;
-      performance: number;
-      maintainability: number;
-      security: number;
-      bestPractices: number;
-    };
-    issues: Array<{
-      severity: string;
-      category: string;
-      description: string;
-      location?: string;
-      suggestedFix?: string;
-    }>;
-    suggestions: string[];
-    isViable: boolean;
-  }>(prompt, {
-    systemPrompt: PromptTemplates.codeCritique,
-    temperature: 0.3, // Lower temp for analytical work
-    maxTokens: 2048,
-  });
+  try {
+    const response = await client.generateJson<{
+      assessment: {
+        correctness: number;
+        performance: number;
+        maintainability: number;
+        security: number;
+        bestPractices: number;
+      };
+      issues: Array<{
+        severity: string;
+        category: string;
+        description: string;
+        location?: string;
+        suggestedFix?: string;
+      }>;
+      suggestions: string[];
+      isViable: boolean;
+    }>(prompt, {
+      systemPrompt: PromptTemplates.codeCritique,
+      temperature: 0.3, // Lower temp for analytical work
+      maxTokens: 2048,
+    });
 
-  if (response.data) {
-    const assessment = normalizeAssessment(response.data.assessment);
-    const issues = response.data.issues.map((issue) => ({
-      severity: normalizeSeverity(issue.severity),
-      category: normalizeCategory(issue.category),
-      description: issue.description,
-      location: issue.location,
-      suggestedFix: issue.suggestedFix,
-    }));
+    if (response.data) {
+      const assessment = normalizeAssessment(response.data.assessment);
+      const issues = response.data.issues.map((issue) => ({
+        severity: normalizeSeverity(issue.severity),
+        category: normalizeCategory(issue.category),
+        description: issue.description,
+        location: issue.location,
+        suggestedFix: issue.suggestedFix,
+      }));
 
-    return {
-      variantId: variant.id,
-      qualityScore: calculateQualityScore(assessment, issues),
-      assessment,
-      issues,
-      suggestions: response.data.suggestions,
-      isViable: response.data.isViable,
-    };
+      return {
+        variantId: variant.id,
+        qualityScore: calculateQualityScore(assessment, issues),
+        assessment,
+        issues,
+        suggestions: response.data.suggestions,
+        isViable: response.data.isViable,
+      };
+    }
+  } catch (error) {
+    logger.warn({ error }, 'Critique LLM call failed, using fallback');
   }
 
   // Fallback critique

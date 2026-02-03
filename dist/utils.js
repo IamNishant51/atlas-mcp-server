@@ -4,6 +4,7 @@
  * Shared utilities for logging, timing, error handling, and common operations.
  */
 import pino from 'pino';
+import { randomBytes } from 'crypto';
 // ============================================================================
 // Logger Configuration
 // ============================================================================
@@ -17,10 +18,11 @@ const isMcpMode = process.argv[1]?.includes('mcp') || process.env['MCP_MODE'] ==
  */
 export function createLogger(level = 'info') {
     // In MCP mode, use silent or minimal logging to avoid interfering with stdio JSON
+    // AND force logging to stderr so it doesn't corrupt the JSON on stdout
     if (isMcpMode) {
         return pino({
-            level: process.env['LOG_LEVEL'] ?? 'silent', // Silent by default in MCP mode
-        });
+            level: process.env['LOG_LEVEL'] ?? 'silent',
+        }, pino.destination(2));
     }
     return pino({
         level,
@@ -140,10 +142,11 @@ export function getErrorMessage(error) {
 // String Utilities
 // ============================================================================
 /**
- * Generate a unique ID for tracking
+ * Generate a unique ID for tracking using crypto for better randomness
  */
 export function generateId() {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+    const randomPart = randomBytes(4).toString('hex');
+    return `${Date.now().toString(36)}-${randomPart}`;
 }
 /**
  * Truncate string to max length with ellipsis
@@ -294,25 +297,18 @@ export function formatDuration(ms) {
  * Process items in parallel with concurrency limit
  */
 export async function parallelMap(items, fn, concurrency = 3) {
-    const results = [];
-    const executing = [];
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const promise = fn(item, i).then((result) => {
-            results[i] = result;
-        });
-        executing.push(promise);
-        if (executing.length >= concurrency) {
-            await Promise.race(executing);
-            // Remove completed promises
-            for (let j = executing.length - 1; j >= 0; j--) {
-                if (executing[j]) {
-                    executing[j].then(() => executing.splice(j, 1)).catch(() => { });
-                }
-            }
+    const results = new Array(items.length);
+    let currentIndex = 0;
+    async function runNext() {
+        while (currentIndex < items.length) {
+            const index = currentIndex++;
+            const item = items[index];
+            results[index] = await fn(item, index);
         }
     }
-    await Promise.all(executing);
+    // Start up to 'concurrency' workers
+    const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runNext());
+    await Promise.all(workers);
     return results;
 }
 /**
@@ -336,26 +332,38 @@ export function debounce(fn, delayMs) {
     };
 }
 /**
- * Memoize async function with TTL
+ * Memoize async function with TTL and automatic cleanup
  */
-export function memoizeAsync(fn, ttlMs = 60000, keyFn = (...args) => JSON.stringify(args)) {
+export function memoizeAsync(fn, ttlMs = 60000, keyFn = (...args) => JSON.stringify(args), maxCacheSize = 100) {
     const cache = new Map();
+    let lastCleanup = Date.now();
+    const cleanupInterval = Math.max(ttlMs, 30000); // Cleanup at least every 30s
+    function cleanup(now) {
+        if (now - lastCleanup < cleanupInterval && cache.size <= maxCacheSize)
+            return;
+        lastCleanup = now;
+        for (const [k, v] of cache) {
+            if (v.expiry <= now)
+                cache.delete(k);
+        }
+        // If still over limit, remove oldest entries
+        if (cache.size > maxCacheSize) {
+            const entries = [...cache.entries()].sort((a, b) => a[1].expiry - b[1].expiry);
+            const toRemove = entries.slice(0, cache.size - maxCacheSize);
+            for (const [k] of toRemove)
+                cache.delete(k);
+        }
+    }
     return ((...args) => {
         const key = keyFn(...args);
         const now = Date.now();
+        cleanup(now);
         const cached = cache.get(key);
         if (cached && cached.expiry > now) {
             return Promise.resolve(cached.value);
         }
         return fn(...args).then((result) => {
             cache.set(key, { value: result, expiry: now + ttlMs });
-            // Cleanup old entries
-            if (cache.size > 100) {
-                for (const [k, v] of cache) {
-                    if (v.expiry <= now)
-                        cache.delete(k);
-                }
-            }
             return result;
         });
     });
