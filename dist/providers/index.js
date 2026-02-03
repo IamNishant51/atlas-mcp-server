@@ -5,9 +5,10 @@
  * - Ollama (local)
  * - OpenAI (GPT-4, GPT-3.5)
  * - Anthropic (Claude)
- * - Custom/Other providers
+ * - Fallback (no-LLM heuristic mode)
  *
  * The server auto-detects available providers and uses the best one.
+ * If no provider is available, it falls back to heuristic mode.
  */
-export { LLMProvider, createProvider, getActiveProvider, resetProvider, checkProviders, } from './llm-provider.js';
+export { LLMProvider, createProvider, getActiveProvider, resetProvider, checkProviders, isNoLLMMode, } from './llm-provider.js';
 //# sourceMappingURL=index.js.map

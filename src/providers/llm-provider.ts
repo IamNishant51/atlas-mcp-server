@@ -325,10 +325,56 @@ class AnthropicProvider extends LLMProvider {
 }
 
 // ============================================================================
+// No-LLM Fallback Provider (works without any external AI)
+// ============================================================================
+
+/**
+ * A fallback provider that works without any external LLM.
+ * Returns structured data that the IDE's built-in AI can process.
+ */
+class NoLLMProvider extends LLMProvider {
+  readonly type: ProviderType = 'none' as ProviderType;
+  readonly model: string = 'fallback-heuristic';
+
+  async isAvailable(): Promise<boolean> {
+    return true; // Always available
+  }
+
+  async complete(prompt: string, options: CompletionOptions = {}): Promise<CompletionResponse> {
+    // Return a structured response indicating no LLM is available
+    // The IDE's AI (GitHub Copilot, etc.) will process this
+    return {
+      text: JSON.stringify({
+        mode: 'no-llm-fallback',
+        message: 'No external LLM configured. Using heuristic analysis.',
+        prompt_summary: prompt.substring(0, 200),
+        suggestion: 'Configure OLLAMA_BASE_URL, OPENAI_API_KEY, or ANTHROPIC_API_KEY for AI-powered analysis.',
+      }),
+      provider: 'none' as ProviderType,
+      model: 'fallback-heuristic',
+      durationMs: 0,
+    };
+  }
+
+  async completeJson<T>(prompt: string, options: CompletionOptions = {}): Promise<{ data: T | null; raw: string }> {
+    const response = await this.complete(prompt, options);
+    return { data: null, raw: response.text };
+  }
+}
+
+// ============================================================================
 // Provider Factory
 // ============================================================================
 
 let activeProvider: LLMProvider | null = null;
+let noLLMMode = false;
+
+/**
+ * Check if we're running in no-LLM mode
+ */
+export function isNoLLMMode(): boolean {
+  return noLLMMode;
+}
 
 /**
  * Create a provider instance based on configuration
@@ -341,6 +387,8 @@ export function createProvider(config: ProviderConfig): LLMProvider {
       return new OpenAIProvider(config);
     case 'anthropic':
       return new AnthropicProvider(config);
+    case 'none' as ProviderType:
+      return new NoLLMProvider();
     default:
       return new OllamaProvider(config);
   }
@@ -414,12 +462,13 @@ export async function getActiveProvider(config?: ProviderConfig): Promise<LLMPro
     }
   }
 
-  throw new Error(
-    'No LLM provider available. Please configure one of:\n' +
-    '- OLLAMA_BASE_URL (with Ollama running)\n' +
-    '- OPENAI_API_KEY\n' +
-    '- ANTHROPIC_API_KEY'
-  );
+  // No external LLM available - use fallback mode
+  // The MCP server will still work, returning heuristic analysis
+  // The IDE's built-in AI (GitHub Copilot, etc.) can process the results
+  logger.info('No external LLM available - running in fallback mode (heuristics only)');
+  noLLMMode = true;
+  activeProvider = new NoLLMProvider();
+  return activeProvider;
 }
 
 /**

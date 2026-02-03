@@ -50,6 +50,10 @@ export declare abstract class LLMProvider {
     }>;
 }
 /**
+ * Check if we're running in no-LLM mode
+ */
+export declare function isNoLLMMode(): boolean;
+/**
  * Create a provider instance based on configuration
  */
 export declare function createProvider(config: ProviderConfig): LLMProvider;

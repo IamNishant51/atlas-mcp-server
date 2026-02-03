@@ -23,7 +23,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError, } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { logger, createTimer, safeStringify } from './utils.js';
-import { getActiveProvider, checkProviders } from './providers/index.js';
+import { getActiveProvider, checkProviders, isNoLLMMode } from './providers/index.js';
 // Provider cache to avoid repeated checks
 let cachedProvider = null;
 let providerCacheTime = 0;
@@ -345,10 +345,15 @@ async function handleTool(name, args) {
             case 'atlas_providers': {
                 const status = await checkProviders();
                 const provider = await getActiveProvider();
+                const fallbackMode = isNoLLMMode();
                 return {
                     ...status,
                     currentProvider: provider.type,
                     currentModel: provider.model,
+                    fallbackMode,
+                    message: fallbackMode
+                        ? 'Running in fallback mode (heuristics only). Configure OLLAMA_BASE_URL, OPENAI_API_KEY, or ANTHROPIC_API_KEY for AI-powered analysis.'
+                        : 'LLM provider active and ready.',
                 };
             }
             default:
