@@ -391,16 +391,6 @@ async function findSourceFiles(projectPath: string): Promise<string[]> {
   await scan(projectPath);
   return files;
 }
-        }
-      }
-    } catch (error) {
-      // Ignore errors for inaccessible directories
-    }
-  }
-  
-  await scan(projectPath);
-  return files;
-}
 
 // ============================================================================
 // Mock Security & License Data (In production, use real APIs)

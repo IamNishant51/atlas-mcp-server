@@ -1,8 +1,8 @@
 {
   "name": "atlas-pipeline-mcp",
-  "version": "1.0.23",
+  "version": "1.0.25",
   "mcpName": "io.github.IamNishant51/atlas-pipeline",
-  "description": "Advanced AI/ML-powered MCP server with RAG search, ML bug prediction, intelligent code migration, and advanced test generation. Works with any LLM (Ollama, OpenAI, Anthropic). 13 professional tools + 4 cutting-edge AI/ML tools. Compatible with Cursor, Windsurf, Claude Desktop.",
+  "description": "Advanced AI/ML-powered MCP server with 5 new senior developer tools + RAG search, ML bug prediction, code migration, test generation. 22 professional tools total. Works with Cursor, Windsurf, Claude Desktop.",
   "main": "dist/server.js",
   "bin": {
     "atlas-pipeline-mcp": "./dist/mcp.js",

@@ -96,6 +96,7 @@ import { generateDocumentation } from './tools/docs.js';
 import { explainCode } from './tools/explain.js';
 import { analyzeError } from './tools/debug.js';
 import { processThought, startSession } from './tools/think.js';
+import { designUI, generateComponentFromDesign } from './tools/ui-ux-designer.js';
 import type { PipelineContext, SolutionVariant, Critique, CodeSnippet } from './types.js';
 
 // ============================================================================
@@ -508,6 +509,43 @@ Each thought can: question previous steps, branch into alternatives, mark dead e
       required: ['projectPath'],
     },
   },
+  {
+    name: 'atlas_ui_ux_designer',
+    description: 'Advanced UI/UX designer that finds best design inspirations from the internet and generates production-ready code. Provides multiple design options with images, code generation, and accessibility guidance.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        requirements: { type: 'string', description: 'UI/UX requirements and design goals' },
+        componentType: { 
+          type: 'string',
+          enum: ['button', 'card', 'form', 'navbar', 'hero', 'dashboard', 'modal', 'sidebar', 'footer', 'custom'],
+          description: 'Type of component to design'
+        },
+        framework: { 
+          type: 'string',
+          enum: ['react', 'vue', 'html', 'svelte', 'angular'],
+          description: 'Target framework for code generation'
+        },
+        colorScheme: { 
+          type: 'string',
+          enum: ['light', 'dark', 'auto'],
+          description: 'Color scheme preference'
+        },
+        inspiration: { 
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Design patterns to draw inspiration from (e.g., "glassmorphism", "minimalist")'
+        },
+        targetAudience: { type: 'string', description: 'Target audience for the design' },
+        constraints: { 
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Design constraints or limitations'
+        },
+      },
+      required: ['requirements'],
+    },
+  },
 ];
 
 // ============================================================================
@@ -894,6 +932,19 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
           title: args['title'] as string | undefined,
           theme: args['theme'] as any,
           refreshInterval: args['refreshInterval'] as number | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_ui_ux_designer': {
+        const result = await designUI({
+          requirements: z.string().parse(args['requirements']),
+          componentType: args['componentType'] as any,
+          framework: args['framework'] as any,
+          colorScheme: args['colorScheme'] as any,
+          inspiration: args['inspiration'] as string[] | undefined,
+          targetAudience: args['targetAudience'] as string | undefined,
+          constraints: args['constraints'] as string[] | undefined,
         });
         return result;
       }

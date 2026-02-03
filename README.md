@@ -153,7 +153,7 @@ These tools help frontend developers think like senior engineers with AI-powered
 ### 🌟 Why Atlas?
 
 - **Zero Config**: No API keys required - uses your IDE's built-in AI (Copilot/Cursor)
-- **22 Professional Tools**: 13 core + 4 advanced AI/ML + 5 senior developer tools
+- **23 Professional Tools**: 13 core + 4 advanced AI/ML + 5 senior developer + 1 UI/UX designer
 - **Agentic Workflow**: DAG-based task decomposition
 - **Context Aware**: Project structure, dependencies, git history analysis
 - **High Performance**: LRU caching, request deduplication, parallel execution
@@ -181,7 +181,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ---
 
-## 🛠️ All Available Tools (22 Total)
+## 🛠️ All Available Tools (23 Total)
 
 ### 🔥 Advanced AI/ML Tools
 
@@ -280,6 +280,15 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 <tr>
 <td><code>atlas_api_consultant</code></td>
 <td><b>API Design Consultant</b><br/>RESTful and GraphQL API design review with best practices and documentation templates</td>
+</tr>
+</table>
+
+### 🎨 Design & UI/UX Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_ui_ux_designer</code></td>
+<td><b>UI/UX Designer</b><br/>Find best design inspirations online, generate multiple design options with images, and create production-ready code. Supports React, Vue, HTML, Svelte with accessibility guidance.</td>
 </tr>
 </table>
 
