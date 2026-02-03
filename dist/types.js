@@ -9,21 +9,34 @@
  * - Strict readonly types where mutation is not expected
  * - Comprehensive Zod schemas for runtime validation
  * - Type guards for safe narrowing
+ * - Lazy schema compilation for performance
  *
  * @module types
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import { z } from 'zod';
-/** Helper to create a Score (clamped 0-100) */
+/** Helper to create a Score (clamped 0-100) - optimized with bitwise operations */
 export function createScore(value) {
-    return Math.max(0, Math.min(100, Math.round(value)));
+    // Use bitwise OR to convert to integer (faster than Math.round for positive numbers)
+    const clamped = value < 0 ? 0 : value > 100 ? 100 : (value + 0.5) | 0;
+    return clamped;
 }
 /** Helper to create a Confidence (clamped 0-1) */
 export function createConfidence(value) {
-    return Math.max(0, Math.min(1, value));
+    // Clamp between 0 and 1
+    return (value < 0 ? 0 : value > 1 ? 1 : value);
 }
 /** Helper to create a SessionId */
 export function createSessionId(value) {
+    return value;
+}
+/** Helper to create a VariantId */
+export function createVariantId(value) {
+    return value;
+}
+/** Helper to create a TaskId */
+export function createTaskId(value) {
     return value;
 }
 // ============================================================================

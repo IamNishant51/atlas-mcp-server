@@ -9,9 +9,11 @@
  * - Strict readonly types where mutation is not expected
  * - Comprehensive Zod schemas for runtime validation
  * - Type guards for safe narrowing
+ * - Lazy schema compilation for performance
  * 
  * @module types
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 
 import { z } from 'zod';
@@ -39,19 +41,32 @@ export type Score = Brand<number, 'Score'>;
 /** Confidence value between 0 and 1 */
 export type Confidence = Brand<number, 'Confidence'>;
 
-/** Helper to create a Score (clamped 0-100) */
+/** Helper to create a Score (clamped 0-100) - optimized with bitwise operations */
 export function createScore(value: number): Score {
-  return Math.max(0, Math.min(100, Math.round(value))) as Score;
+  // Use bitwise OR to convert to integer (faster than Math.round for positive numbers)
+  const clamped = value < 0 ? 0 : value > 100 ? 100 : (value + 0.5) | 0;
+  return clamped as Score;
 }
 
 /** Helper to create a Confidence (clamped 0-1) */
 export function createConfidence(value: number): Confidence {
-  return Math.max(0, Math.min(1, value)) as Confidence;
+  // Clamp between 0 and 1
+  return (value < 0 ? 0 : value > 1 ? 1 : value) as Confidence;
 }
 
 /** Helper to create a SessionId */
 export function createSessionId(value: string): SessionId {
   return value as SessionId;
+}
+
+/** Helper to create a VariantId */
+export function createVariantId(value: string): VariantId {
+  return value as VariantId;
+}
+
+/** Helper to create a TaskId */
+export function createTaskId(value: string): TaskId {
+  return value as TaskId;
 }
 
 // ============================================================================
@@ -75,6 +90,8 @@ export interface PipelineRequest {
   readonly timestamp?: string;
   /** Request priority (affects queue ordering) */
   readonly priority?: 'low' | 'normal' | 'high';
+  /** Enable caching for this request */
+  readonly enableCache?: boolean;
 }
 
 /**

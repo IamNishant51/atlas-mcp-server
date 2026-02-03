@@ -9,9 +9,11 @@
  * - Strict readonly types where mutation is not expected
  * - Comprehensive Zod schemas for runtime validation
  * - Type guards for safe narrowing
+ * - Lazy schema compilation for performance
  *
  * @module types
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import { z } from 'zod';
 /** Brand type for creating nominal types */
@@ -29,12 +31,16 @@ export type SessionId = Brand<string, 'SessionId'>;
 export type Score = Brand<number, 'Score'>;
 /** Confidence value between 0 and 1 */
 export type Confidence = Brand<number, 'Confidence'>;
-/** Helper to create a Score (clamped 0-100) */
+/** Helper to create a Score (clamped 0-100) - optimized with bitwise operations */
 export declare function createScore(value: number): Score;
 /** Helper to create a Confidence (clamped 0-1) */
 export declare function createConfidence(value: number): Confidence;
 /** Helper to create a SessionId */
 export declare function createSessionId(value: string): SessionId;
+/** Helper to create a VariantId */
+export declare function createVariantId(value: string): VariantId;
+/** Helper to create a TaskId */
+export declare function createTaskId(value: string): TaskId;
 /**
  * Represents the user's original request to the pipeline
  * @immutable - Should not be mutated after creation
@@ -52,6 +58,8 @@ export interface PipelineRequest {
     readonly timestamp?: string;
     /** Request priority (affects queue ordering) */
     readonly priority?: 'low' | 'normal' | 'high';
+    /** Enable caching for this request */
+    readonly enableCache?: boolean;
 }
 /**
  * The final output of the pipeline after all stages complete

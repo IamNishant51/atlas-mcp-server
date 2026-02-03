@@ -10,10 +10,40 @@
  * - AI-enhanced reasoning when LLM available
  * - Thought summarization and compression
  * - Memory of key conclusions
+ * - Session persistence with LRU eviction
+ * 
+ * Performance Features:
+ * - Optimized session lookup with Map
+ * - Lazy AI enhancement (only when needed)
+ * - Efficient insight extraction using pre-compiled patterns
+ * - Memory-efficient session cleanup
+ * 
+ * @module think
+ * @author Nishant Unavane
+ * @version 1.1.0
  */
 
 import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
-import { logger } from '../utils.js';
+import { logger, LRUCache, globalMetrics } from '../utils.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Maximum sessions to keep in memory */
+const MAX_SESSIONS = 50;
+
+/** Session timeout in milliseconds (30 minutes) */
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Pre-compiled insight extraction patterns for performance */
+const INSIGHT_PATTERNS = {
+  realization: /(?:realize|understand|discover|notice|observe|see that|learn that|conclude that|find that)\s+(.{10,100})/gi,
+  important: /(?:important|key|crucial|essential|critical|significant)(?:\s+(?:point|thing|aspect|factor|insight))?\s*(?:is|:)\s*(.{10,100})/gi,
+  solution: /(?:solution|answer|fix|approach|strategy|method)\s+(?:is|would be|could be|might be)\s*(.{10,100})/gi,
+  because: /because\s+(.{10,80})/gi,
+  therefore: /therefore[,\s]+(.{10,80})/gi,
+} as const;
 
 // ============================================================================
 // Types
@@ -80,6 +110,7 @@ export interface Branch {
 export interface ThinkingSession {
   id: string;
   startTime: string;
+  lastAccessTime: number; // For LRU eviction
   problem: string;
   thoughts: ThoughtRecord[];
   branches: Record<string, Branch>;
@@ -145,18 +176,83 @@ export interface ThinkingResult {
   
   // Final output (when done)
   conclusion?: Conclusion;
+  
+  // Performance metrics
+  processingTimeMs?: number;
 }
 
 // ============================================================================
 // Thinking Server Class
 // ============================================================================
 
+/**
+ * Advanced Thinking Server with optimized session management
+ * - LRU eviction for memory management
+ * - Efficient insight extraction
+ * - Lazy AI enhancement
+ */
 export class AdvancedThinkingServer {
   private sessions: Map<string, ThinkingSession> = new Map();
   private currentSession: ThinkingSession | null = null;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     logger.debug('AdvancedThinkingServer initialized');
+    // Start periodic cleanup
+    this.startCleanupTimer();
+  }
+
+  /**
+   * Start periodic cleanup of stale sessions
+   */
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) return;
+    
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupStaleSessions();
+    }, SESSION_TIMEOUT_MS / 2);
+  }
+
+  /**
+   * Clean up sessions that haven't been accessed recently
+   */
+  private cleanupStaleSessions(): void {
+    const now = Date.now();
+    const toDelete: string[] = [];
+    
+    for (const [id, session] of this.sessions) {
+      if (now - session.lastAccessTime > SESSION_TIMEOUT_MS) {
+        toDelete.push(id);
+      }
+    }
+    
+    for (const id of toDelete) {
+      this.sessions.delete(id);
+      logger.debug({ sessionId: id }, 'Cleaned up stale thinking session');
+    }
+    
+    // Also enforce max sessions limit (LRU eviction)
+    if (this.sessions.size > MAX_SESSIONS) {
+      const sessionsArray = [...this.sessions.entries()]
+        .sort((a, b) => a[1].lastAccessTime - b[1].lastAccessTime);
+      
+      const toEvict = sessionsArray.slice(0, this.sessions.size - MAX_SESSIONS);
+      for (const [id] of toEvict) {
+        this.sessions.delete(id);
+        logger.debug({ sessionId: id }, 'Evicted thinking session (LRU)');
+      }
+    }
+  }
+
+  /**
+   * Shutdown and cleanup
+   */
+  shutdown(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    this.sessions.clear();
   }
 
   /**
@@ -164,10 +260,12 @@ export class AdvancedThinkingServer {
    */
   startSession(problem: string, sessionId?: string): string {
     const id = sessionId ?? `session-${Date.now()}`;
+    const now = Date.now();
     
     const session: ThinkingSession = {
       id,
       startTime: new Date().toISOString(),
+      lastAccessTime: now,
       problem,
       thoughts: [],
       branches: {},
@@ -181,19 +279,36 @@ export class AdvancedThinkingServer {
     this.sessions.set(id, session);
     this.currentSession = session;
     
+    globalMetrics.record({
+      name: 'think.session_started',
+      durationMs: 0,
+      success: true,
+      metadata: { sessionId: id },
+    });
+    
     return id;
+  }
+
+  /**
+   * Get session count for monitoring
+   */
+  getSessionCount(): number {
+    return this.sessions.size;
   }
 
   /**
    * Process a thought and return the result
    */
   async processThought(input: ThoughtInput): Promise<ThinkingResult> {
+    const startTime = performance.now();
+    
     // Get or create session
     if (!this.currentSession) {
       this.startSession(input.problemContext ?? 'General problem solving');
     }
     
     const session = this.currentSession!;
+    session.lastAccessTime = Date.now(); // Update access time
 
     // Auto-adjust totalThoughts if needed
     if (input.thoughtNumber > input.totalThoughts) {

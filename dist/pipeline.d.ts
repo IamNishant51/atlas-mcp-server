@@ -1,18 +1,28 @@
 /**
  * Atlas Server - Multi-Stage Pipeline
  *
- * Orchestrates the complete AI pipeline:
+ * Orchestrates the complete AI pipeline with optimized parallel execution:
  * 1. Intent Analysis - Understand what the user wants
  * 2. Context Gathering - Collect relevant code and project info
- * 3. Git Context - Understand repository state
+ * 3. Git Context - Understand repository state (parallel with context)
  * 4. Task Decomposition - Break down into subtasks
  * 5. Variant Generation - Create multiple solutions
  * 6. Critique - Review and score variants
  * 7. Optimization - Refine the best solution
+ *
+ * Performance Features:
+ * - Parallel execution of independent stages
+ * - Request deduplication for concurrent pipeline calls
+ * - Comprehensive metrics collection
+ * - Graceful degradation on stage failures
+ *
+ * @module pipeline
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import type { PipelineRequest, PipelineResponse } from './types.js';
 /**
- * Execute the complete multi-stage pipeline
+ * Execute the complete multi-stage pipeline with deduplication
  */
 export declare function executePipeline(request: PipelineRequest): Promise<PipelineResponse>;
 /**

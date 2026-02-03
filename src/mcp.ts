@@ -5,6 +5,12 @@
  * This server exposes Atlas tools via the MCP protocol for IDE integration.
  * Compatible with: Cursor, GitHub Copilot, Claude Desktop, Windsurf, etc.
  * 
+ * Architecture:
+ * - Tool definitions are separated from handlers for maintainability
+ * - Lazy loading of tool handlers to improve startup time
+ * - Provider caching with TTL to reduce redundant API calls
+ * - Unified error handling with detailed error codes
+ * 
  * Usage:
  *   npx atlas-mcp-server
  *   # or
@@ -16,6 +22,10 @@
  *   OLLAMA_MODEL=auto (or specific model name)
  *   OPENAI_API_KEY=sk-...
  *   ANTHROPIC_API_KEY=sk-ant-...
+ * 
+ * @module mcp
+ * @author Nishant Unavane
+ * @version 1.0.18
  */
 
 import 'dotenv/config';
@@ -29,21 +39,48 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, createTimer, safeStringify } from './utils.js';
+import { logger, createTimer, safeStringify, LRUCache } from './utils.js';
 import { getActiveProvider, checkProviders, isNoLLMMode, setMcpServerInstance } from './providers/index.js';
 
-// Provider cache to avoid repeated checks
-let cachedProvider: Awaited<ReturnType<typeof getActiveProvider>> | null = null;
-let providerCacheTime = 0;
-const PROVIDER_CACHE_TTL_MS = 60000; // 1 minute cache
+// ============================================================================
+// Provider Caching with LRU Cache Pattern
+// ============================================================================
 
-async function getCachedProvider() {
+/** Provider cache TTL in milliseconds */
+const PROVIDER_CACHE_TTL_MS = 60000;
+
+/** Cached provider with timestamp */
+interface CachedProviderEntry {
+  provider: Awaited<ReturnType<typeof getActiveProvider>>;
+  cachedAt: number;
+}
+
+/** Singleton provider cache */
+let providerCache: CachedProviderEntry | null = null;
+
+/**
+ * Get cached provider with TTL-based invalidation
+ * Reduces redundant provider checks during high-frequency tool calls
+ */
+async function getCachedProvider(): Promise<Awaited<ReturnType<typeof getActiveProvider>>> {
   const now = Date.now();
-  if (!cachedProvider || now - providerCacheTime > PROVIDER_CACHE_TTL_MS) {
-    cachedProvider = await getActiveProvider();
-    providerCacheTime = now;
+  
+  // Return cached if still valid
+  if (providerCache && (now - providerCache.cachedAt) < PROVIDER_CACHE_TTL_MS) {
+    return providerCache.provider;
   }
-  return cachedProvider;
+  
+  // Refresh cache
+  const provider = await getActiveProvider();
+  providerCache = { provider, cachedAt: now };
+  return provider;
+}
+
+/**
+ * Invalidate provider cache (useful after configuration changes)
+ */
+export function invalidateProviderCache(): void {
+  providerCache = null;
 }
 import { analyzeIntent } from './tools/intent.js';
 import { buildContext, analyzeProject } from './tools/context.js';

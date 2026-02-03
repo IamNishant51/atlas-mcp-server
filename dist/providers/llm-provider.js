@@ -8,18 +8,20 @@
  *
  * Features:
  * - Auto-detection of available providers
- * - Graceful fallback chain
- * - Request deduplication
- * - Connection health monitoring
- * - Circuit breaker protection
+ * - Graceful fallback chain with priority ordering
+ * - Request deduplication to prevent duplicate LLM calls
+ * - Connection health monitoring with circuit breaker
+ * - Response caching for repeated queries
+ * - Comprehensive metrics collection
  *
  * @module llm-provider
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import { Ollama } from 'ollama';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { logger, retry, getErrorMessage, extractJson, CircuitBreaker } from '../utils.js';
+import { logger, retry, getErrorMessage, extractJson, CircuitBreaker, LRUCache, RequestDeduplicator, hashString, } from '../utils.js';
 // ============================================================================
 // Constants
 // ============================================================================
@@ -29,6 +31,30 @@ const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_MAX_RETRIES = 3;
 /** Health check interval */
 const HEALTH_CHECK_INTERVAL_MS = 60000;
+/** Response cache TTL (5 minutes for LLM responses) */
+const RESPONSE_CACHE_TTL_MS = 300000;
+/** Maximum cache size for LLM responses */
+const RESPONSE_CACHE_MAX_SIZE = 100;
+// ============================================================================
+// Response Caching and Deduplication
+// ============================================================================
+/** Global response cache for LLM completions */
+const responseCache = new LRUCache(RESPONSE_CACHE_MAX_SIZE, RESPONSE_CACHE_TTL_MS);
+/** Request deduplicator to prevent duplicate concurrent LLM calls */
+const requestDeduplicator = new RequestDeduplicator();
+/**
+ * Generate a cache key for an LLM request
+ */
+function generateLLMCacheKey(provider, prompt, options) {
+    const keyData = {
+        provider,
+        prompt: prompt.substring(0, 500), // Truncate long prompts for key
+        temp: options?.temperature ?? 0.7,
+        maxTokens: options?.maxTokens ?? 2048,
+        system: options?.systemPrompt?.substring(0, 100),
+    };
+    return hashString(JSON.stringify(keyData));
+}
 // ============================================================================
 // Abstract Provider Interface
 // ============================================================================

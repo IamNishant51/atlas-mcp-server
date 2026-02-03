@@ -9,9 +9,17 @@ Atlas is an MCP server that gives your IDE "Agentic Superpowers". Instead of jus
 
 ---
 
-## 🚀 What's New in v1.0.18
+## 🚀 What's New in v1.0.19
 
-**6 Powerful New Tools:**
+**Performance Optimizations:**
+- ⚡ **LRU Cache** - Intelligent caching for LLM responses and pipeline results
+- 🔄 **Request Deduplication** - Prevents duplicate concurrent API calls
+- 📊 **Metrics Collection** - Built-in performance monitoring with P50/P95/P99 stats
+- 🔒 **Circuit Breaker** - Resilient provider connections with automatic recovery
+- 🧹 **Session Management** - Automatic cleanup of stale thinking sessions
+- 🚀 **Parallel Execution** - Independent pipeline stages run concurrently
+
+**All 15 Powerful Tools:**
 - 🔒 **atlas_security** - Scan code for vulnerabilities (SQL injection, XSS, secrets, etc.)
 - 🧪 **atlas_test** - Auto-generate comprehensive test cases
 - 📚 **atlas_docs** - Generate documentation (JSDoc, TSDoc, PyDoc)
@@ -31,6 +39,7 @@ Atlas is an MCP server that gives your IDE "Agentic Superpowers". Instead of jus
 - **Test Generator**: Creates unit/integration tests for Jest, Vitest, Pytest, Mocha.
 - **Smart Debugging**: Analyzes errors, parses stack traces, suggests fixes.
 - **Sequential Thinking**: Advanced reasoning with branching, revision, and hypothesis verification.
+- **High Performance**: LRU caching, request deduplication, and parallel execution.
 
 ---
 

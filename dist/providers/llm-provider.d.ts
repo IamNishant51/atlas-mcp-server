@@ -8,13 +8,15 @@
  *
  * Features:
  * - Auto-detection of available providers
- * - Graceful fallback chain
- * - Request deduplication
- * - Connection health monitoring
- * - Circuit breaker protection
+ * - Graceful fallback chain with priority ordering
+ * - Request deduplication to prevent duplicate LLM calls
+ * - Connection health monitoring with circuit breaker
+ * - Response caching for repeated queries
+ * - Comprehensive metrics collection
  *
  * @module llm-provider
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import { CircuitBreaker } from '../utils.js';
 export type ProviderType = 'ollama' | 'openai' | 'anthropic' | 'auto' | 'none';
@@ -31,6 +33,8 @@ export interface ProviderConfig {
     readonly anthropicModel?: string;
     readonly maxRetries?: number;
     readonly timeoutMs?: number;
+    readonly enableCache?: boolean;
+    readonly cacheTtlMs?: number;
 }
 export interface CompletionOptions {
     readonly systemPrompt?: string;
@@ -42,6 +46,8 @@ export interface CompletionOptions {
     readonly timeoutMs?: number;
     /** Request ID for deduplication */
     readonly requestId?: string;
+    /** Skip cache lookup */
+    readonly skipCache?: boolean;
 }
 export interface CompletionResponse {
     readonly text: string;

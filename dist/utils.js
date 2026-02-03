@@ -7,11 +7,14 @@
  * - High-performance logging with MCP mode support
  * - Circuit breaker pattern for resilient external calls
  * - LRU cache with TTL for efficient memoization
+ * - Request deduplication for concurrent identical calls
  * - Comprehensive retry logic with exponential backoff
  * - Type-safe error handling utilities
+ * - Performance metrics collection
  *
  * @module utils
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import pino from 'pino';
 import { randomBytes } from 'crypto';
@@ -601,5 +604,159 @@ export function memoizeAsync(fn, options = {}) {
     memoized.cache = cache;
     memoized.clearCache = () => cache.clear();
     return memoized;
+}
+// ============================================================================
+// Request Deduplication
+// ============================================================================
+/**
+ * Request deduplicator to prevent duplicate concurrent requests
+ * Useful for expensive operations that may be called multiple times simultaneously
+ */
+export class RequestDeduplicator {
+    pending = new Map();
+    /**
+     * Execute a function with deduplication
+     * If a request with the same key is already in progress, returns that promise
+     */
+    async execute(key, fn) {
+        const existing = this.pending.get(key);
+        if (existing) {
+            return existing;
+        }
+        const promise = fn()
+            .finally(() => {
+            this.pending.delete(key);
+        });
+        this.pending.set(key, promise);
+        return promise;
+    }
+    /** Check if a request is in progress */
+    isInProgress(key) {
+        return this.pending.has(key);
+    }
+    /** Get count of pending requests */
+    get pendingCount() {
+        return this.pending.size;
+    }
+    /** Clear all pending requests (careful - may cause issues) */
+    clear() {
+        this.pending.clear();
+    }
+}
+/**
+ * Performance metrics collector for monitoring and optimization
+ * Collects timing data for operations and provides aggregated statistics
+ */
+export class MetricsCollector {
+    metrics = [];
+    maxEntries;
+    constructor(maxEntries = 1000) {
+        this.maxEntries = maxEntries;
+    }
+    /**
+     * Record a metric entry
+     */
+    record(entry) {
+        this.metrics.push({
+            ...entry,
+            timestamp: Date.now(),
+        });
+        // Prune old entries if over limit
+        if (this.metrics.length > this.maxEntries) {
+            this.metrics = this.metrics.slice(-this.maxEntries);
+        }
+    }
+    /**
+     * Measure execution time of an async function
+     */
+    async measure(name, fn, metadata) {
+        const start = performance.now();
+        let success = true;
+        try {
+            return await fn();
+        }
+        catch (error) {
+            success = false;
+            throw error;
+        }
+        finally {
+            this.record({
+                name,
+                durationMs: Math.round(performance.now() - start),
+                success,
+                metadata,
+            });
+        }
+    }
+    /**
+     * Get statistics for a specific metric
+     */
+    getStats(name) {
+        const entries = this.metrics.filter(m => m.name === name);
+        if (entries.length === 0)
+            return null;
+        const durations = entries.map(e => e.durationMs).sort((a, b) => a - b);
+        const successCount = entries.filter(e => e.success).length;
+        return {
+            count: entries.length,
+            avgDurationMs: Math.round(durations.reduce((a, b) => a + b, 0) / durations.length),
+            minDurationMs: durations[0],
+            maxDurationMs: durations[durations.length - 1],
+            successRate: successCount / entries.length,
+            p50: durations[Math.floor(durations.length * 0.50)],
+            p95: durations[Math.floor(durations.length * 0.95)],
+            p99: durations[Math.floor(durations.length * 0.99)],
+        };
+    }
+    /**
+     * Get all unique metric names
+     */
+    getMetricNames() {
+        return [...new Set(this.metrics.map(m => m.name))];
+    }
+    /**
+     * Get all statistics
+     */
+    getAllStats() {
+        const stats = {};
+        for (const name of this.getMetricNames()) {
+            stats[name] = this.getStats(name);
+        }
+        return stats;
+    }
+    /**
+     * Clear all metrics
+     */
+    clear() {
+        this.metrics = [];
+    }
+    /**
+     * Export metrics as JSON
+     */
+    export() {
+        return [...this.metrics];
+    }
+}
+/** Global metrics collector singleton */
+export const globalMetrics = new MetricsCollector(5000);
+// ============================================================================
+// String Hashing for Cache Keys
+// ============================================================================
+/**
+ * Fast string hash function for cache key generation
+ * Uses djb2 algorithm for good distribution
+ */
+export function hashString(str) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(36);
+}
+/**
+ * Generate a cache key from multiple values
+ */
+export function generateCacheKey(...values) {
+    return hashString(JSON.stringify(values));
 }
 //# sourceMappingURL=utils.js.map

@@ -7,11 +7,14 @@
  * - High-performance logging with MCP mode support
  * - Circuit breaker pattern for resilient external calls
  * - LRU cache with TTL for efficient memoization
+ * - Request deduplication for concurrent identical calls
  * - Comprehensive retry logic with exponential backoff
  * - Type-safe error handling utilities
+ * - Performance metrics collection
  *
  * @module utils
- * @version 2.0.0
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 import pino from 'pino';
 import type { PipelineError, StageName, StageResult } from './types.js';
@@ -222,5 +225,87 @@ export declare function memoizeAsync<T extends (...args: unknown[]) => Promise<u
     cache: LRUCache<string, Awaited<ReturnType<T>>>;
     clearCache: () => void;
 };
+/**
+ * Request deduplicator to prevent duplicate concurrent requests
+ * Useful for expensive operations that may be called multiple times simultaneously
+ */
+export declare class RequestDeduplicator<T> {
+    private pending;
+    /**
+     * Execute a function with deduplication
+     * If a request with the same key is already in progress, returns that promise
+     */
+    execute(key: string, fn: () => Promise<T>): Promise<T>;
+    /** Check if a request is in progress */
+    isInProgress(key: string): boolean;
+    /** Get count of pending requests */
+    get pendingCount(): number;
+    /** Clear all pending requests (careful - may cause issues) */
+    clear(): void;
+}
+export interface MetricEntry {
+    name: string;
+    durationMs: number;
+    timestamp: number;
+    success: boolean;
+    metadata?: Record<string, unknown>;
+}
+/**
+ * Performance metrics collector for monitoring and optimization
+ * Collects timing data for operations and provides aggregated statistics
+ */
+export declare class MetricsCollector {
+    private metrics;
+    private readonly maxEntries;
+    constructor(maxEntries?: number);
+    /**
+     * Record a metric entry
+     */
+    record(entry: Omit<MetricEntry, 'timestamp'>): void;
+    /**
+     * Measure execution time of an async function
+     */
+    measure<T>(name: string, fn: () => Promise<T>, metadata?: Record<string, unknown>): Promise<T>;
+    /**
+     * Get statistics for a specific metric
+     */
+    getStats(name: string): {
+        count: number;
+        avgDurationMs: number;
+        minDurationMs: number;
+        maxDurationMs: number;
+        successRate: number;
+        p50: number;
+        p95: number;
+        p99: number;
+    } | null;
+    /**
+     * Get all unique metric names
+     */
+    getMetricNames(): string[];
+    /**
+     * Get all statistics
+     */
+    getAllStats(): Record<string, ReturnType<MetricsCollector['getStats']>>;
+    /**
+     * Clear all metrics
+     */
+    clear(): void;
+    /**
+     * Export metrics as JSON
+     */
+    export(): MetricEntry[];
+}
+/** Global metrics collector singleton */
+export declare const globalMetrics: MetricsCollector;
+/**
+ * Fast string hash function for cache key generation
+ * Uses djb2 algorithm for good distribution
+ */
+export declare function hashString(str: string): string;
+/**
+ * Generate a cache key from multiple values
+ */
+export declare function generateCacheKey(...values: unknown[]): string;
 export {};
 //# sourceMappingURL=utils.d.ts.map

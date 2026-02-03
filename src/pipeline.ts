@@ -1,14 +1,24 @@
 /**
  * Atlas Server - Multi-Stage Pipeline
  * 
- * Orchestrates the complete AI pipeline:
+ * Orchestrates the complete AI pipeline with optimized parallel execution:
  * 1. Intent Analysis - Understand what the user wants
  * 2. Context Gathering - Collect relevant code and project info
- * 3. Git Context - Understand repository state
+ * 3. Git Context - Understand repository state (parallel with context)
  * 4. Task Decomposition - Break down into subtasks
  * 5. Variant Generation - Create multiple solutions
  * 6. Critique - Review and score variants
  * 7. Optimization - Refine the best solution
+ * 
+ * Performance Features:
+ * - Parallel execution of independent stages
+ * - Request deduplication for concurrent pipeline calls
+ * - Comprehensive metrics collection
+ * - Graceful degradation on stage failures
+ * 
+ * @module pipeline
+ * @author Nishant Unavane
+ * @version 2.1.0
  */
 
 import type {
@@ -37,24 +47,56 @@ import {
   nowISO, 
   formatDuration,
   generateId,
+  globalMetrics,
+  RequestDeduplicator,
 } from './utils.js';
+
+// ============================================================================
+// Pipeline Deduplication and Caching
+// ============================================================================
+
+/** Request deduplicator for concurrent identical pipeline requests */
+const pipelineDeduplicator = new RequestDeduplicator<PipelineResponse>();
+
+/**
+ * Generate a unique key for a pipeline request
+ */
+function generatePipelineKey(request: PipelineRequest): string {
+  return `${request.query.substring(0, 100)}|${request.repoPath ?? 'no-repo'}`;
+}
 
 // ============================================================================
 // Pipeline Execution
 // ============================================================================
 
 /**
- * Execute the complete multi-stage pipeline
+ * Execute the complete multi-stage pipeline with deduplication
  */
 export async function executePipeline(
   request: PipelineRequest
 ): Promise<PipelineResponse> {
+  const pipelineKey = generatePipelineKey(request);
+  
+  // Deduplicate concurrent identical requests
+  return pipelineDeduplicator.execute(pipelineKey, () => 
+    executePipelineInternal(request)
+  );
+}
+
+/**
+ * Internal pipeline execution (called after deduplication)
+ */
+async function executePipelineInternal(
+  request: PipelineRequest
+): Promise<PipelineResponse> {
   const startTime = performance.now();
   const startedAt = nowISO();
+  const pipelineId = generateId();
   const stages: StageResult[] = [];
 
   logger.info(
     { 
+      pipelineId,
       queryLength: request.query.length,
       hasRepoPath: !!request.repoPath,
       sessionId: request.sessionId,
@@ -64,9 +106,10 @@ export async function executePipeline(
 
   try {
     // Stage 1: Intent Analysis
-    const { stageResult: intentResult, output: intent } = await executeStage(
-      'intent',
-      () => analyzeIntent(request.query)
+    const { stageResult: intentResult, output: intent } = await globalMetrics.measure(
+      'pipeline.intent',
+      () => executeStage('intent', () => analyzeIntent(request.query)),
+      { pipelineId }
     );
     stages.push(intentResult);
 
