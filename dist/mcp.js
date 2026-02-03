@@ -49,6 +49,7 @@ import { generateTests } from './tools/testgen.js';
 import { generateDocumentation } from './tools/docs.js';
 import { explainCode } from './tools/explain.js';
 import { analyzeError } from './tools/debug.js';
+import { processThought, startSession } from './tools/think.js';
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -288,6 +289,59 @@ const TOOLS = [
         },
     },
     {
+        name: 'atlas_think',
+        description: `Advanced sequential thinking for complex problem-solving. Features dynamic branching, hypothesis testing, confidence tracking, and AI-enhanced reasoning.
+
+Use this tool for:
+- Breaking down complex problems step-by-step
+- Multi-path reasoning with branch and merge
+- Hypothesis generation and verification
+- Problems requiring backtracking and revision
+- Building confidence through iterative analysis
+
+Each thought can: question previous steps, branch into alternatives, mark dead ends, propose/verify hypotheses, and merge conclusions.`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                thought: { type: 'string', description: 'Your current thinking step' },
+                thoughtNumber: { type: 'number', description: 'Current thought number (1-indexed)' },
+                totalThoughts: { type: 'number', description: 'Estimated total thoughts needed (can adjust)' },
+                nextThoughtNeeded: { type: 'boolean', description: 'Whether another thought step is needed' },
+                isRevision: { type: 'boolean', description: 'Whether this revises previous thinking' },
+                revisesThought: { type: 'number', description: 'Which thought number is being reconsidered' },
+                branchFromThought: { type: 'number', description: 'Thought number to branch from' },
+                branchId: { type: 'string', description: 'Identifier for this branch (e.g., "approach-a")' },
+                mergeBranches: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Branch IDs to merge conclusions from'
+                },
+                thoughtType: {
+                    type: 'string',
+                    enum: ['analysis', 'hypothesis', 'verification', 'revision', 'synthesis', 'conclusion', 'question', 'exploration', 'backtrack', 'insight'],
+                    description: 'Type of thinking step'
+                },
+                confidence: { type: 'number', description: 'Confidence in current reasoning (0-1)' },
+                hypothesis: { type: 'string', description: 'Hypothesis statement when thoughtType is "hypothesis"' },
+                verificationResult: {
+                    type: 'string',
+                    enum: ['confirmed', 'refuted', 'partial', 'inconclusive'],
+                    description: 'Result when verifying a hypothesis'
+                },
+                isDeadEnd: { type: 'boolean', description: 'Mark this path as a dead end' },
+                keyInsight: { type: 'string', description: 'A key realization to remember' },
+                needsMoreThoughts: { type: 'boolean', description: 'If more thoughts needed beyond estimate' },
+                problemContext: { type: 'string', description: 'Description of the problem being solved' },
+                constraints: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Constraints to consider'
+                },
+            },
+            required: ['thought', 'thoughtNumber', 'totalThoughts', 'nextThoughtNeeded'],
+        },
+    },
+    {
         name: 'atlas_providers',
         description: 'Check available LLM providers and their status.',
         inputSchema: {
@@ -517,6 +571,38 @@ async function handleTool(name, args) {
                     context,
                     language,
                     framework,
+                });
+                return result;
+            }
+            case 'atlas_think': {
+                const thought = z.string().parse(args['thought']);
+                const thoughtNumber = z.number().parse(args['thoughtNumber']);
+                const totalThoughts = z.number().parse(args['totalThoughts']);
+                const nextThoughtNeeded = z.boolean().parse(args['nextThoughtNeeded']);
+                // Start session if problemContext is provided
+                const problemContext = args['problemContext'];
+                if (problemContext && thoughtNumber === 1) {
+                    startSession(problemContext);
+                }
+                const result = await processThought({
+                    thought,
+                    thoughtNumber,
+                    totalThoughts,
+                    nextThoughtNeeded,
+                    isRevision: args['isRevision'],
+                    revisesThought: args['revisesThought'],
+                    branchFromThought: args['branchFromThought'],
+                    branchId: args['branchId'],
+                    mergeBranches: args['mergeBranches'],
+                    thoughtType: args['thoughtType'],
+                    confidence: args['confidence'],
+                    hypothesis: args['hypothesis'],
+                    verificationResult: args['verificationResult'],
+                    isDeadEnd: args['isDeadEnd'],
+                    keyInsight: args['keyInsight'],
+                    needsMoreThoughts: args['needsMoreThoughts'],
+                    problemContext,
+                    constraints: args['constraints'],
                 });
                 return result;
             }
