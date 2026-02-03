@@ -53,6 +53,11 @@ import { generateVariants } from './tools/variants.js';
 import { critiqueVariants } from './tools/critique.js';
 import { optimizeVariant } from './tools/optimize.js';
 import { executePipeline } from './pipeline.js';
+import { scanSecurity } from './tools/security.js';
+import { generateTests } from './tools/testgen.js';
+import { generateDocumentation } from './tools/docs.js';
+import { explainCode } from './tools/explain.js';
+import { analyzeError } from './tools/debug.js';
 import type { PipelineContext, SolutionVariant, Critique, CodeSnippet } from './types.js';
 
 // ============================================================================
@@ -189,6 +194,109 @@ const TOOLS = [
         },
       },
       required: ['message', 'projectPath'],
+    },
+  },
+  {
+    name: 'atlas_security',
+    description: 'Scan code for security vulnerabilities. Detects SQL injection, XSS, hardcoded secrets, weak crypto, and more. Returns findings with severity, CWE IDs, and remediation suggestions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to scan for vulnerabilities' },
+        language: { type: 'string', description: 'Programming language (typescript, javascript, python, etc.)' },
+        context: { type: 'string', description: 'Additional context about the code (e.g., "authentication handler")' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'atlas_test',
+    description: 'Generate comprehensive test cases for code. Supports Jest, Vitest, Pytest, Mocha. Includes unit tests, integration tests, edge cases, and mocking suggestions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to generate tests for' },
+        language: { type: 'string', description: 'Programming language' },
+        framework: { 
+          type: 'string',
+          enum: ['jest', 'vitest', 'pytest', 'mocha', 'auto'],
+          description: 'Test framework to use (default: auto-detect)'
+        },
+        testType: {
+          type: 'string',
+          enum: ['unit', 'integration', 'e2e', 'snapshot', 'property'],
+          description: 'Type of test to generate (default: unit)'
+        },
+        functionName: { type: 'string', description: 'Specific function to test' },
+        context: { type: 'string', description: 'Additional context about the code' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'atlas_docs',
+    description: 'Generate documentation for code. Creates JSDoc/TSDoc/PyDoc comments, README files, API documentation, and usage examples.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to document' },
+        language: { type: 'string', description: 'Programming language' },
+        style: { 
+          type: 'string',
+          enum: ['jsdoc', 'tsdoc', 'pydoc', 'godoc', 'rustdoc', 'auto'],
+          description: 'Documentation style (default: auto-detect)'
+        },
+        format: { 
+          type: 'string',
+          enum: ['markdown', 'html', 'json', 'plain'],
+          description: 'Output format for documentation'
+        },
+        includeExamples: { type: 'boolean', description: 'Include usage examples' },
+        includeTypes: { type: 'boolean', description: 'Include type information' },
+        verbose: { type: 'boolean', description: 'Generate more detailed documentation' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'atlas_explain',
+    description: 'Explain code in plain language. Provides line-by-line explanations, algorithm analysis, complexity analysis, design pattern detection, and beginner-friendly glossary.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to explain' },
+        level: { 
+          type: 'string',
+          enum: ['beginner', 'intermediate', 'expert'],
+          description: 'Explanation detail level'
+        },
+        type: { 
+          type: 'string',
+          enum: ['overview', 'detailed', 'line-by-line', 'algorithm'],
+          description: 'Type of explanation'
+        },
+        language: { type: 'string', description: 'Programming language' },
+        focusArea: { type: 'string', description: 'Specific aspect to focus on' },
+        includeComplexity: { type: 'boolean', description: 'Include Big O complexity analysis' },
+        includePatterns: { type: 'boolean', description: 'Include design pattern detection' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'atlas_debug',
+    description: 'Analyze errors and provide debugging assistance. Parses stack traces, identifies root causes, suggests fixes with code examples, and explains common error patterns.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string', description: 'The error message' },
+        stackTrace: { type: 'string', description: 'Full stack trace' },
+        code: { type: 'string', description: 'Related code context' },
+        context: { type: 'string', description: 'Additional context about when the error occurs' },
+        language: { type: 'string', description: 'Programming language' },
+        framework: { type: 'string', description: 'Framework in use (React, Express, etc.)' },
+      },
+      required: [],
     },
   },
   {
@@ -373,6 +481,82 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         const result = await executePipeline({
           query: message,
           repoPath: projectPath,
+        });
+        return result;
+      }
+
+      case 'atlas_security': {
+        const code = z.string().parse(args['code']);
+        const language = args['language'] as string | undefined;
+        const context = args['context'] as string | undefined;
+        const result = await scanSecurity(code, language, context);
+        return result;
+      }
+
+      case 'atlas_test': {
+        const code = z.string().parse(args['code']);
+        const language = args['language'] as string | undefined;
+        const framework = (args['framework'] as 'jest' | 'vitest' | 'pytest' | 'mocha' | 'auto') ?? 'auto';
+        const testType = (args['testType'] as 'unit' | 'integration' | 'e2e' | 'snapshot' | 'property') ?? 'unit';
+        const result = await generateTests(code, {
+          language,
+          framework,
+          testType,
+        });
+        return result;
+      }
+
+      case 'atlas_docs': {
+        const code = z.string().parse(args['code']);
+        const language = args['language'] as string | undefined;
+        const style = (args['style'] as 'jsdoc' | 'tsdoc' | 'pydoc' | 'godoc' | 'rustdoc' | 'auto') ?? 'auto';
+        const includeExamples = (args['includeExamples'] as boolean) ?? true;
+        const result = await generateDocumentation(code, {
+          language,
+          style,
+          includeExamples,
+        });
+        return result;
+      }
+
+      case 'atlas_explain': {
+        const code = z.string().parse(args['code']);
+        const level = (args['level'] as 'beginner' | 'intermediate' | 'expert') ?? 'intermediate';
+        const type = (args['type'] as 'overview' | 'detailed' | 'line-by-line' | 'algorithm') ?? 'overview';
+        const language = args['language'] as string | undefined;
+        const focusArea = args['focusArea'] as string | undefined;
+        const includeComplexity = (args['includeComplexity'] as boolean) ?? true;
+        const includePatterns = (args['includePatterns'] as boolean) ?? true;
+        const result = await explainCode(code, {
+          level,
+          type,
+          language,
+          focusArea,
+          includeComplexity,
+          includePatterns,
+        });
+        return result;
+      }
+
+      case 'atlas_debug': {
+        const error = args['error'] as string | undefined;
+        const stackTrace = args['stackTrace'] as string | undefined;
+        const code = args['code'] as string | undefined;
+        const context = args['context'] as string | undefined;
+        const language = args['language'] as string | undefined;
+        const framework = args['framework'] as string | undefined;
+        
+        if (!error && !stackTrace) {
+          throw new McpError(ErrorCode.InvalidParams, 'Either error or stackTrace is required');
+        }
+        
+        const result = await analyzeError({
+          error,
+          stackTrace,
+          code,
+          context,
+          language,
+          framework,
         });
         return result;
       }
