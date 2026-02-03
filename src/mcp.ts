@@ -399,6 +399,115 @@ Each thought can: question previous steps, branch into alternatives, mark dead e
       required: [],
     },
   },
+  {
+    name: 'atlas_refactor',
+    description: 'AI-powered code refactoring with pattern detection, complexity reduction, SOLID principles enforcement, and automated optimizations. Detects code smells, applies design patterns, and modernizes code.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to refactor' },
+        language: { type: 'string', description: 'Programming language' },
+        filePath: { type: 'string', description: 'Optional file path for context' },
+        targets: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['complexity', 'duplication', 'naming', 'structure', 'performance', 'solid', 'patterns', 'types', 'async', 'functional', 'deadcode'],
+          },
+          description: 'Specific refactoring targets'
+        },
+        maxComplexity: { type: 'number', description: 'Target cyclomatic complexity (default: 10)' },
+        enforceSOLID: { type: 'boolean', description: 'Enforce SOLID principles (default: true)' },
+        preserveBehavior: { type: 'boolean', description: 'Ensure no behavior changes (default: true)' },
+        addTypes: { type: 'boolean', description: 'Add TypeScript types if missing' },
+        modernize: { type: 'boolean', description: 'Update to latest language features' },
+        projectContext: { type: 'string', description: 'Additional project context' },
+        dependencies: { type: 'array', items: { type: 'string' }, description: 'Project dependencies' },
+      },
+      required: ['code', 'language'],
+    },
+  },
+  {
+    name: 'atlas_profiler',
+    description: 'Performance profiling and Big-O analysis. Analyzes time/space complexity, identifies CPU/memory/IO hotspots, detects memory leaks, and generates optimization suggestions with benchmark code.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to profile' },
+        language: { type: 'string', description: 'Programming language' },
+        filePath: { type: 'string', description: 'Optional file path' },
+        analyzeTime: { type: 'boolean', description: 'Analyze time complexity (default: true)' },
+        analyzeSpace: { type: 'boolean', description: 'Analyze space complexity (default: true)' },
+        detectLeaks: { type: 'boolean', description: 'Detect memory leaks (default: true)' },
+        identifyHotspots: { type: 'boolean', description: 'Identify performance hotspots (default: true)' },
+        generateBenchmark: { type: 'boolean', description: 'Generate benchmark code' },
+        inputSizes: { type: 'array', items: { type: 'number' }, description: 'Input sizes for Big-O analysis' },
+        expectedInputSize: { type: 'string', enum: ['small', 'medium', 'large', 'huge'], description: 'Expected input size' },
+        constraints: { type: 'array', items: { type: 'string' }, description: 'Performance constraints' },
+      },
+      required: ['code', 'language'],
+    },
+  },
+  {
+    name: 'atlas_dependencies',
+    description: 'Comprehensive dependency analysis: dependency graph, circular dependencies, unused packages, security vulnerabilities, license compliance, bundle size impact, and upgrade recommendations.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to project root' },
+        checkSecurity: { type: 'boolean', description: 'Check for vulnerabilities (default: true)' },
+        checkLicenses: { type: 'boolean', description: 'Check license compliance (default: true)' },
+        findUnused: { type: 'boolean', description: 'Find unused dependencies (default: true)' },
+        analyzeBundleSize: { type: 'boolean', description: 'Analyze bundle size impact (default: true)' },
+        suggestUpgrades: { type: 'boolean', description: 'Suggest package upgrades (default: true)' },
+      },
+      required: ['projectPath'],
+    },
+  },
+  {
+    name: 'atlas_review',
+    description: 'AI code review assistant with multi-dimensional quality analysis: code quality, security, performance, architecture, testing, and documentation. Provides grades, detailed findings, and actionable suggestions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to review' },
+        language: { type: 'string', description: 'Programming language' },
+        filePath: { type: 'string', description: 'Optional file path' },
+        checkQuality: { type: 'boolean', description: 'Check code quality (default: true)' },
+        checkSecurity: { type: 'boolean', description: 'Check security (default: true)' },
+        checkPerformance: { type: 'boolean', description: 'Check performance (default: true)' },
+        checkArchitecture: { type: 'boolean', description: 'Check architecture (default: true)' },
+        checkTests: { type: 'boolean', description: 'Check test coverage (default: false)' },
+        checkDocumentation: { type: 'boolean', description: 'Check documentation (default: true)' },
+        framework: { type: 'string', description: 'Framework being used' },
+        teamStandards: { type: 'string', description: 'Team coding standards' },
+        pullRequestContext: { type: 'string', description: 'PR context for review' },
+        changedFiles: { type: 'array', items: { type: 'string' }, description: 'Files changed in PR' },
+      },
+      required: ['code', 'language'],
+    },
+  },
+  {
+    name: 'atlas_dashboard',
+    description: 'Generate beautiful HTML dashboard with live code metrics: complexity trends, test coverage, dependency graphs, security audit, performance hotspots, and git stats. Creates interactive visualizations.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to project root' },
+        outputPath: { type: 'string', description: 'Output path for HTML file' },
+        includeComplexity: { type: 'boolean', description: 'Include complexity metrics' },
+        includeCoverage: { type: 'boolean', description: 'Include coverage metrics' },
+        includeDependencies: { type: 'boolean', description: 'Include dependency analysis' },
+        includeSecurity: { type: 'boolean', description: 'Include security metrics' },
+        includePerformance: { type: 'boolean', description: 'Include performance metrics' },
+        includeGitStats: { type: 'boolean', description: 'Include git statistics' },
+        title: { type: 'string', description: 'Dashboard title' },
+        theme: { type: 'string', enum: ['light', 'dark', 'auto'], description: 'Dashboard theme' },
+        refreshInterval: { type: 'number', description: 'Auto-refresh interval in seconds' },
+      },
+      required: ['projectPath'],
+    },
+  },
 ];
 
 // ============================================================================
@@ -700,6 +809,93 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
             ? 'Running in fallback mode (heuristics only).'
             : 'LLM provider active and ready.',
         };
+      }
+
+      case 'atlas_refactor': {
+        const { default: refactorCode } = await import('./tools/refactor.js');
+        const result = await refactorCode({
+          code: z.string().parse(args['code']),
+          language: z.string().parse(args['language']),
+          filePath: args['filePath'] as string | undefined,
+          targets: args['targets'] as any[] | undefined,
+          maxComplexity: args['maxComplexity'] as number | undefined,
+          enforceSOLID: args['enforceSOLID'] as boolean | undefined,
+          preserveBehavior: args['preserveBehavior'] as boolean | undefined,
+          addTypes: args['addTypes'] as boolean | undefined,
+          modernize: args['modernize'] as boolean | undefined,
+          projectContext: args['projectContext'] as string | undefined,
+          dependencies: args['dependencies'] as string[] | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_profiler': {
+        const { default: profileCode } = await import('./tools/profiler.js');
+        const result = await profileCode({
+          code: z.string().parse(args['code']),
+          language: z.string().parse(args['language']),
+          filePath: args['filePath'] as string | undefined,
+          analyzeTime: args['analyzeTime'] as boolean | undefined,
+          analyzeSpace: args['analyzeSpace'] as boolean | undefined,
+          detectLeaks: args['detectLeaks'] as boolean | undefined,
+          identifyHotspots: args['identifyHotspots'] as boolean | undefined,
+          generateBenchmark: args['generateBenchmark'] as boolean | undefined,
+          inputSizes: args['inputSizes'] as number[] | undefined,
+          expectedInputSize: args['expectedInputSize'] as any,
+          constraints: args['constraints'] as string[] | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_dependencies': {
+        const { default: analyzeDependencies } = await import('./tools/dependencies.js');
+        const result = await analyzeDependencies({
+          projectPath: z.string().parse(args['projectPath']),
+          checkSecurity: args['checkSecurity'] as boolean | undefined,
+          checkLicenses: args['checkLicenses'] as boolean | undefined,
+          findUnused: args['findUnused'] as boolean | undefined,
+          analyzeBundleSize: args['analyzeBundleSize'] as boolean | undefined,
+          suggestUpgrades: args['suggestUpgrades'] as boolean | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_review': {
+        const { default: reviewCode } = await import('./tools/review.js');
+        const result = await reviewCode({
+          code: z.string().parse(args['code']),
+          language: z.string().parse(args['language']),
+          filePath: args['filePath'] as string | undefined,
+          checkQuality: args['checkQuality'] as boolean | undefined,
+          checkSecurity: args['checkSecurity'] as boolean | undefined,
+          checkPerformance: args['checkPerformance'] as boolean | undefined,
+          checkArchitecture: args['checkArchitecture'] as boolean | undefined,
+          checkTests: args['checkTests'] as boolean | undefined,
+          checkDocumentation: args['checkDocumentation'] as boolean | undefined,
+          framework: args['framework'] as string | undefined,
+          teamStandards: args['teamStandards'] as string | undefined,
+          pullRequestContext: args['pullRequestContext'] as string | undefined,
+          changedFiles: args['changedFiles'] as string[] | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_dashboard': {
+        const { default: generateDashboard } = await import('./tools/dashboard.js');
+        const result = await generateDashboard({
+          projectPath: z.string().parse(args['projectPath']),
+          outputPath: args['outputPath'] as string | undefined,
+          includeComplexity: args['includeComplexity'] as boolean | undefined,
+          includeCoverage: args['includeCoverage'] as boolean | undefined,
+          includeDependencies: args['includeDependencies'] as boolean | undefined,
+          includeSecurity: args['includeSecurity'] as boolean | undefined,
+          includePerformance: args['includePerformance'] as boolean | undefined,
+          includeGitStats: args['includeGitStats'] as boolean | undefined,
+          title: args['title'] as string | undefined,
+          theme: args['theme'] as any,
+          refreshInterval: args['refreshInterval'] as number | undefined,
+        });
+        return result;
       }
 
       default:
