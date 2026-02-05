@@ -8,11 +8,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=node.js)](https://nodejs.org/)
 
-**The Agentic AI Pipeline for your IDE**
+**Enterprise-Grade Agentic AI Pipeline for Modern IDEs**
 
 Advanced AI/ML-powered development tools with RAG search, ML bug prediction, intelligent code migration, and comprehensive test generation.
 
-[Installation](#installation-1-click-setup) • [Features](#key-features) • [Tools](#all-available-tools-17-total) • [Usage](#how-to-use-cheat-sheet) • [Documentation](#advanced-integration-optional)
+[Installation](#installation) • [Features](#key-features) • [Tools](#available-tools) • [Usage](#usage-guide) • [Documentation](#advanced-integration)
 
 </div>
 
@@ -20,77 +20,113 @@ Advanced AI/ML-powered development tools with RAG search, ML bug prediction, int
 
 ## Overview
 
-Atlas MCP Server gives your IDE "Agentic Superpowers" through a full analysis pipeline:
+Atlas MCP Server transforms your IDE with intelligent development capabilities through a comprehensive analysis pipeline:
 
 **Intent → Context → Decomposition → Variants → Critique → Optimization**
 
-Works natively with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copilot**, and **VS Code**.
+Natively integrated with **Cursor**, **Windsurf**, **Claude Desktop**, **GitHub Copilot**, and **VS Code**.
 
 ---
 
----
+## What's New in Latest Version
 
-## ✨ What's New in v1.0.26
+### Advanced Development Tools Suite
 
-### 🎨 4 Powerful Frontend Developer Tools (NEW!)
+The latest version introduces six powerful tools designed to address complex development challenges:
 
-These tools solve real-time frontend development problems with production-ready solutions:
+**New Advanced Analysis Tools:**
 
 <table>
 <tr>
-<td width="25%"><b>⚡ Performance Doctor</b></td>
+<td width="30%"><b>Bug Oracle</b></td>
+<td>Predictive bug detection system analyzing code patterns, complexity metrics, and historical data to forecast potential issues before they occur</td>
+</tr>
+<tr>
+<td><b>Code Whisperer</b></td>
+<td>Intelligent code suggestion engine providing context-aware recommendations, pattern detection, and best practice enforcement</td>
+</tr>
+<tr>
+<td><b>Codebase Surgeon</b></td>
+<td>Precision refactoring tool for large-scale codebase transformations with dependency-aware modifications and impact analysis</td>
+</tr>
+</table>
+
+**Enhanced Development Experience:**
+
+<table>
+<tr>
+<td width="30%"><b>Semantic Search</b></td>
+<td>Advanced code search with natural language understanding, finding code by intent rather than keywords</td>
+</tr>
+<tr>
+<td><b>Smart Merge Resolver</b></td>
+<td>Intelligent conflict resolution for git merges using code analysis and context understanding to suggest optimal merge strategies</td>
+</tr>
+<tr>
+<td><b>Tech Debt Quantifier</b></td>
+<td>Technical debt measurement and tracking system with actionable metrics and prioritized remediation roadmaps</td>
+</tr>
+</table>
+
+### Frontend Developer Tools
+
+Comprehensive suite for modern frontend development:
+
+<table>
+<tr>
+<td width="30%"><b>Performance Doctor</b></td>
 <td>Detects React/Vue re-render issues, bundle bloat, memory leaks, and provides specific code fixes with improvement estimates</td>
 </tr>
 <tr>
-<td><b>🎨 CSS Wizard</b></td>
+<td><b>CSS Wizard</b></td>
 <td>CSS architecture analyzer - detects specificity conflicts, generates design tokens, converts between BEM/Tailwind/CSS Modules/styled-components</td>
 </tr>
 <tr>
-<td><b>✨ Animation Studio</b></td>
+<td><b>Animation Studio</b></td>
 <td>Professional animation generator - CSS keyframes, Framer Motion, GSAP timelines, micro-interactions with accessibility support</td>
 </tr>
 <tr>
-<td><b>🔌 API Helper</b></td>
+<td><b>API Helper</b></td>
 <td>API integration assistant - generates TypeScript types, React Query/SWR hooks, mock data, Zod schemas, and error handling</td>
 </tr>
 </table>
 
 ---
 
-## Previous Releases
+## Senior Developer Tools
 
-### v1.0.25 - 5 Senior Developer Tools
+Expert-level guidance and analysis:
 
 <table>
 <tr>
-<td width="25%"><b>🧠 Senior Mentor</b></td>
+<td width="30%"><b>Senior Mentor</b></td>
 <td>Architectural guidance from a 15+ year veteran perspective with trade-off analysis and senior lessons</td>
 </tr>
 <tr>
-<td><b>⚡ Performance Optimizer</b></td>
+<td><b>Performance Optimizer</b></td>
 <td>Deep performance analysis with Web Vitals optimization and bottleneck detection</td>
 </tr>
 <tr>
-<td><b>🔒 Security Scanner</b></td>
+<td><b>Security Scanner</b></td>
 <td>Enterprise-grade vulnerability detection with compliance assessment (GDPR, CCPA, HIPAA, PCI-DSS)</td>
 </tr>
 <tr>
-<td><b>📦 State Management Architect</b></td>
+<td><b>State Management Architect</b></td>
 <td>Pattern comparison and scalability analysis for Redux, Zustand, Jotai, Recoil, and more</td>
 </tr>
 <tr>
-<td><b>🏗️ API Design Consultant</b></td>
+<td><b>API Design Consultant</b></td>
 <td>RESTful and GraphQL API design review with best practices and documentation templates</td>
 </tr>
 </table>
 
-### Previous Releases (v1.0.23)
+## AI/ML Powered Tools
 
-#### Advanced AI/ML Tools (4)
+Advanced machine learning capabilities:
 
 <table>
 <tr>
-<td width="25%"><b>RAG Search</b></td>
+<td width="30%"><b>RAG Search</b></td>
 <td>Semantic code search with knowledge graphs and natural language queries</td>
 </tr>
 <tr>
@@ -107,11 +143,13 @@ These tools solve real-time frontend development problems with production-ready 
 </tr>
 </table>
 
-### Core Professional Tools (13)
+## Core Professional Tools
+
+Essential development utilities:
 
 <table>
 <tr>
-<td width="25%"><b>Refactor</b></td>
+<td width="30%"><b>Refactor</b></td>
 <td>Code refactoring engine with complexity analysis</td>
 </tr>
 <tr>
@@ -146,69 +184,104 @@ These tools solve real-time frontend development problems with production-ready 
 
 ---
 
-## ✨ What's New in v1.0.23
-
----
-
-## 🎯 Key Features
+## Key Features
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 🤖 AI/ML Capabilities
+### AI/ML Capabilities
 - **RAG Search** - Semantic code understanding with knowledge graphs
 - **ML Prediction** - Bug & performance forecasting (70-85% accuracy)
 - **Code Migration** - 12 intelligent migration types
 - **Test Generation** - Advanced test suites with edge cases
+- **Bug Oracle** - Predictive bug detection and prevention
+- **Semantic Search** - Natural language code discovery
 
 </td>
 <td width="50%" valign="top">
 
-### ⚡ Professional Tools
+### Professional Tools
 - **Full Pipeline** - Intent → Context → Variants → Optimize
 - **Quality Analysis** - Code review, security, complexity
 - **Performance** - Profiling, bottleneck detection
 - **Automation** - Tests, docs, refactoring
+- **Tech Debt** - Quantification and tracking
+- **Merge Resolution** - Intelligent conflict handling
 
 </td>
 </tr>
 </table>
 
-### 🌟 Why Atlas?
+### Why Choose Atlas?
 
-- **Zero Config**: No API keys required - uses your IDE's built-in AI (Copilot/Cursor)
-- **23 Professional Tools**: 13 core + 4 advanced AI/ML + 5 senior developer + 1 UI/UX designer
-- **Agentic Workflow**: DAG-based task decomposition
-- **Context Aware**: Project structure, dependencies, git history analysis
+- **Zero Configuration**: No API keys required - leverages your IDE's built-in AI (Copilot/Cursor)
+- **33 Professional Tools**: Comprehensive suite covering all development needs
+- **Agentic Workflow**: DAG-based task decomposition for complex problems
+- **Context Aware**: Deep project structure, dependencies, and git history analysis
 - **High Performance**: LRU caching, request deduplication, parallel execution
+- **Enterprise Ready**: Production-grade tools with security and compliance features
 
 ---
 
-## Installation (1-Click Setup)
+## Installation
 
-### 1. Install Globally
-Open your terminal and run the following command to install the package globally via NPM:
+### Quick Start (Recommended)
+
+**Step 1: Install Globally**
+
+Open your terminal and run:
 
 ```bash
 npm install -g atlas-pipeline-mcp
 ```
 
-### 2. Run Auto-Setup
-Run the setup command to automatically configure your IDE (works for Cursor and VS Code):
+**Step 2: Run Auto-Setup**
+
+Automatically configure your IDE (Cursor or VS Code):
 
 ```bash
 atlas-mcp-setup
 ```
 
-### 3. Restart IDE
-Restart your editor. You should see the Atlas server connected in your MCP settings.
+**Step 3: Restart IDE**
+
+Restart your editor. The Atlas server will be automatically connected and ready to use.
 
 ---
 
-## 🛠️ All Available Tools (27 Total)
+## Available Tools
 
-### 🔥 Advanced AI/ML Tools
+### Advanced Development & Analysis Tools
+
+<table>
+<tr>
+<td width="30%"><code>atlas_bug_oracle</code></td>
+<td><b>Bug Oracle</b><br/>Predictive bug detection analyzing code patterns, complexity metrics, and historical data to forecast potential issues with 70-85% accuracy.</td>
+</tr>
+<tr>
+<td><code>atlas_code_whisperer</code></td>
+<td><b>Code Whisperer</b><br/>Context-aware code suggestions with pattern detection, best practice enforcement, and intelligent auto-completion.</td>
+</tr>
+<tr>
+<td><code>atlas_codebase_surgeon</code></td>
+<td><b>Codebase Surgeon</b><br/>Large-scale refactoring with dependency-aware modifications, impact analysis, and safe transformation strategies.</td>
+</tr>
+<tr>
+<td><code>atlas_semantic_search</code></td>
+<td><b>Semantic Search</b><br/>Natural language code search finding code by intent rather than keywords, with context understanding.</td>
+</tr>
+<tr>
+<td><code>atlas_smart_merge</code></td>
+<td><b>Smart Merge Resolver</b><br/>Intelligent git conflict resolution using code analysis and context to suggest optimal merge strategies.</td>
+</tr>
+<tr>
+<td><code>atlas_tech_debt</code></td>
+<td><b>Tech Debt Quantifier</b><br/>Measures and tracks technical debt with actionable metrics and prioritized remediation roadmaps.</td>
+</tr>
+</table>
+
+### AI/ML Powered Tools
 
 <table>
 <tr>
@@ -229,7 +302,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### ⚡ Core Pipeline & Analysis Tools
+### Core Pipeline & Analysis Tools
 
 <table>
 <tr>
@@ -258,7 +331,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🎯 Quality & Optimization Tools
+### Quality & Optimization Tools
 
 <table>
 <tr>
@@ -283,7 +356,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🧠 Advanced Senior Developer Tools (NEW!)
+### Senior Developer Tools
 
 <table>
 <tr>
@@ -308,7 +381,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🎨 Design & UI/UX Tools
+### UI/UX Design Tools
 
 <table>
 <tr>
@@ -317,7 +390,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🚀 Frontend Developer Tools (NEW in v1.0.26!)
+### Frontend Developer Tools
 
 <table>
 <tr>
@@ -338,7 +411,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🚀 Development Productivity Tools
+### Development Productivity Tools
 
 <table>
 <tr>
@@ -375,7 +448,7 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 </tr>
 </table>
 
-### 🔧 Utility Tools
+### Utility Tools
 
 <table>
 <tr>
@@ -386,67 +459,93 @@ Restart your editor. You should see the Atlas server connected in your MCP setti
 
 ---
 
-## How to Use (Cheat Sheet)
+## Usage Guide
 
-Once installed, simply chat with your AI Assistant (Copilot Chat or Cursor Chat). The server automatically activates based on your intent.
+Once installed, interact with your AI Assistant (Copilot Chat or Cursor Chat). The appropriate tool is automatically activated based on your request.
 
-### Advanced AI/ML Tools
-| Goal | What to Ask | Tool Used |
+### Advanced Development Tools
+
+| Goal | Example Request | Tool Used |
+| :--- | :--- | :--- |
+| **Predict Bugs** | "Analyze bug probability in this module" | `atlas_bug_oracle` |
+| **Get Code Suggestions** | "Suggest improvements for this function" | `atlas_code_whisperer` |
+| **Large-Scale Refactoring** | "Refactor the entire authentication system" | `atlas_codebase_surgeon` |
+| **Search by Intent** | "Find where we handle payment processing" | `atlas_semantic_search` |
+| **Resolve Conflicts** | "Help resolve this merge conflict intelligently" | `atlas_smart_merge` |
+| **Measure Tech Debt** | "Quantify technical debt in this project" | `atlas_tech_debt` |
+
+### AI/ML Tools
+
+| Goal | Example Request | Tool Used |
 | :--- | :--- | :--- |
 | **Semantic Code Search** | "Search for authentication code using RAG" | `atlas_rag_search` |
-| **Predict Bugs** | "Predict bug probability in payment-processor.ts" | `atlas_ml_predict` |
+| **Predict Issues** | "Predict bug probability in payment-processor.ts" | `atlas_ml_predict` |
 | **Migrate Codebase** | "Migrate this file from JavaScript to TypeScript" | `atlas_migrate` |
 | **Advanced Testing** | "Generate comprehensive tests with edge cases" | `atlas_testgen_advanced` |
 
 ### Professional Development Tools
-| Goal | What to Ask | Tool Used |
+
+| Goal | Example Request | Tool Used |
 | :--- | :--- | :--- |
-| **Fix a complex file** | "Run the **pipeline** on `utils.ts` to refactor it." | `atlas_pipeline` |
+| **Full Pipeline** | "Run the pipeline on utils.ts to refactor it" | `atlas_pipeline` |
 | **Refactor Code** | "Refactor this code and reduce complexity" | `atlas_refactor` |
 | **Performance Analysis** | "Profile this code for performance bottlenecks" | `atlas_profiler` |
 | **Code Review** | "Review this PR for quality and security" | `atlas_review` |
 | **Check Dependencies** | "Analyze dependencies and find unused packages" | `atlas_dependencies` |
-| **Plan a feature** | "**Decompose** the task of adding JWT auth." | `atlas_decompose` |
-| **Explore ideas** | "Generate **3 variants** for this button component." | `atlas_variants` |
-| **Review Code** | "**Critique** this code for security issues." | `atlas_critique` |
-| **Polish Code** | "**Optimize** this function based on best practices." | `atlas_optimize` |
-| **Security Scan** | "**Scan this code for security vulnerabilities**." | `atlas_security` |
-| **Generate Tests** | "**Generate tests** for this authentication module." | `atlas_test` |
-| **Add Documentation** | "**Document** this API with examples." | `atlas_docs` |
-| **Understand Code** | "**Explain** how this algorithm works." | `atlas_explain` |
-| **Debug Error** | "**Debug** this TypeError, here's the stack trace..." | `atlas_debug` |
-| **Complex Reasoning** | "**Think through** how to design this system." | `atlas_think` |
-| **Project Context** | "Analyze the **project context** and dependencies." | `atlas_context` |
+| **Plan Feature** | "Decompose the task of adding JWT auth" | `atlas_decompose` |
+| **Explore Solutions** | "Generate 3 variants for this button component" | `atlas_variants` |
+| **Review Code** | "Critique this code for security issues" | `atlas_critique` |
+| **Polish Code** | "Optimize this function based on best practices" | `atlas_optimize` |
+| **Security Scan** | "Scan this code for security vulnerabilities" | `atlas_security` |
+| **Generate Tests** | "Generate tests for this authentication module" | `atlas_test` |
+| **Add Documentation** | "Document this API with examples" | `atlas_docs` |
+| **Understand Code** | "Explain how this algorithm works" | `atlas_explain` |
+| **Debug Error** | "Debug this TypeError, here's the stack trace..." | `atlas_debug` |
+| **Complex Reasoning** | "Think through how to design this system" | `atlas_think` |
+| **Project Context** | "Analyze the project context and dependencies" | `atlas_context` |
 
 ---
 
-## Advanced Integration (Optional)
+## Advanced Integration
 
 ### Using Local LLMs
-If you prefer running models locally (e.g. Ollama) or want to use your own API keys instead of your IDE's subscription, you can manually configure the server in your settings:
+
+If you prefer running models locally (e.g., Ollama) or want to use your own API keys instead of your IDE's subscription, configure the server manually in your settings:
 
 ```json
-"atlas": {
-  "command": "npx",
-  "args": ["-y", "atlas-pipeline-mcp"],
-  "env": {
-    "OLLAMA_BASE_URL": "http://localhost:11434",
-    "OPENAI_API_KEY": "sk-...",
-    "ANTHROPIC_API_KEY": "sk-..."
+{
+  "atlas": {
+    "command": "npx",
+    "args": ["-y", "atlas-pipeline-mcp"],
+    "env": {
+      "OLLAMA_BASE_URL": "http://localhost:11434",
+      "OPENAI_API_KEY": "sk-...",
+      "ANTHROPIC_API_KEY": "sk-..."
+    }
   }
 }
 ```
 
-*Note: If no keys are provided, Atlas defaults to **Client Sampling mode**, delegating generation to your IDE.*
+**Note:** If no API keys are provided, Atlas defaults to **Client Sampling mode**, delegating generation to your IDE's AI capabilities.
 
 ---
 
 ## Contributing
 
 We welcome contributions to improve the Atlas pipeline.
+
 - **Repository**: [github.com/IamNishant51/atlas-mcp-server](https://github.com/IamNishant51/atlas-mcp-server)
-- **Issues**: Report bugs on GitHub.
+- **Issues**: Report bugs or request features on GitHub
+- **Pull Requests**: Submit improvements and new features
 
 ---
 
-*Built by Nishant Unavane*
+## License
+
+MIT License - see LICENSE file for details
+
+---
+
+**Built by Nishant Unavane**
+
+For support, documentation, or questions, visit our [GitHub repository](https://github.com/IamNishant51/atlas-mcp-server).
