@@ -103,6 +103,14 @@ import { generateAnimation, getAnimationPresets } from './tools/animation-studio
 import { generateAPIIntegration } from './tools/api-integration-helper.js';
 import type { PipelineContext, SolutionVariant, Critique, CodeSnippet } from './types.js';
 
+// Next-gen revolutionary tools
+import performSurgery from './tools/codebase-surgeon.js';
+import predictBugs from './tools/bug-oracle.js';
+import whisperCode from './tools/code-whisperer.js';
+import quantifyTechDebt from './tools/tech-debt-quantifier.js';
+import searchCode from './tools/semantic-search.js';
+import resolveMergeConflicts from './tools/smart-merge-resolver.js';
+
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -677,6 +685,269 @@ Each thought can: question previous steps, branch into alternatives, mark dead e
       required: ['endpoints', 'baseUrl', 'library'],
     },
   },
+  // ========================================================================
+  // 🚀 NEXT-GENERATION REVOLUTIONARY TOOLS
+  // ========================================================================
+  {
+    name: 'atlas_codebase_surgeon',
+    description: `AUTONOMOUS MULTI-FILE SURGICAL REFACTORING ENGINE
+
+Revolutionary capabilities far beyond basic refactoring:
+- Autonomous multi-file refactoring with dependency graph tracking
+- Semantic code transplant (move code between files maintaining all refs)
+- Blast radius analysis before any change
+- Auto-rollback generation for every change
+- Cross-file rename with 100% accuracy
+- Dead code autopsy and elimination across entire codebase
+- Interface extraction across entire codebase
+- Pattern propagation (apply pattern to all similar code)
+- Dry-run mode for safe testing
+
+Use this for surgical precision code modifications that affect multiple files.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the project root' },
+        operation: {
+          type: 'object',
+          properties: {
+            type: { 
+              type: 'string',
+              enum: ['transplant', 'rename', 'extract-interface', 'inject-dependency', 
+                     'eliminate-dead-code', 'propagate-pattern', 'split-file', 'merge-files',
+                     'convert-to-typescript', 'apply-design-pattern'],
+              description: 'Type of surgical operation'
+            },
+          },
+          required: ['type'],
+          description: 'Operation specification with type-specific parameters'
+        },
+        targetFiles: { type: 'array', items: { type: 'string' }, description: 'Optional target files to limit scope' },
+        dryRun: { type: 'boolean', description: 'Test without actually modifying files (default: true)' },
+        generateRollback: { type: 'boolean', description: 'Generate rollback script (default: true)' },
+        validateBehavior: { type: 'boolean', description: 'Validate behavior is preserved' },
+        maxChangedFiles: { type: 'number', description: 'Maximum files to change (safety limit)' },
+      },
+      required: ['projectPath', 'operation'],
+    },
+  },
+  {
+    name: 'atlas_bug_oracle',
+    description: `PREDICTIVE BUG DETECTION & RISK ANALYSIS ENGINE
+
+ML-inspired bug prediction capabilities:
+- Predict where bugs are likely to occur BEFORE they happen
+- Calculate bug probability scores for each file/function  
+- Identify high-risk code changes before they cause issues
+- Detect bug-prone patterns (complexity, coupling, churn)
+- Generate pre-emptive test recommendations
+- Track historical bug patterns
+- Provide confidence intervals for predictions
+- Integration with git history for churn analysis
+
+This is NOT a static analyzer - it predicts FUTURE bugs using ML-like heuristics.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the project root' },
+        targetFiles: { type: 'array', items: { type: 'string' }, description: 'Specific files to analyze' },
+        analysisDepth: { 
+          type: 'string',
+          enum: ['quick', 'standard', 'deep'],
+          description: 'Analysis depth (affects confidence)' 
+        },
+        includeGitHistory: { type: 'boolean', description: 'Include git churn analysis (default: true)' },
+        timeRange: { 
+          type: 'object',
+          properties: {
+            startDate: { type: 'string' },
+            endDate: { type: 'string' },
+          },
+          description: 'Time range for historical analysis'
+        },
+        customPatterns: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              regex: { type: 'string' },
+              severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low'] },
+              description: { type: 'string' },
+            },
+          },
+          description: 'Custom bug patterns to detect'
+        },
+      },
+      required: ['projectPath'],
+    },
+  },
+  {
+    name: 'atlas_code_whisperer',
+    description: `INTELLIGENT CODE COMPLETION & PREDICTION ENGINE
+
+Next-generation code completion that goes far beyond basic autocomplete:
+- Predict entire code blocks, not just single lines
+- Learn from codebase patterns and conventions
+- Context-aware suggestions based on project architecture
+- Multi-file aware completions (knows about related files)
+- Intent prediction (what are you trying to accomplish?)
+- Smart imports/dependency suggestions
+- API usage pattern completion
+- Error-resistant suggestions (predicts and avoids bugs)
+- Style-matched code generation
+- Natural language to code translation
+
+Use for intelligent code generation that understands your project's DNA.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the project root' },
+        currentFile: { type: 'string', description: 'Current file being edited' },
+        cursorPosition: { 
+          type: 'object',
+          properties: {
+            line: { type: 'number' },
+            column: { type: 'number' },
+          },
+          required: ['line', 'column'],
+          description: 'Cursor position for completion'
+        },
+        prefix: { type: 'string', description: 'Code before cursor' },
+        suffix: { type: 'string', description: 'Code after cursor (optional)' },
+        intent: { type: 'string', description: 'Natural language description of what you want' },
+        mode: { 
+          type: 'string',
+          enum: ['complete', 'generate', 'transform', 'explain', 'fix'],
+          description: 'Completion mode'
+        },
+        context: {
+          type: 'object',
+          properties: {
+            openFiles: { type: 'array', items: { type: 'string' } },
+            recentEdits: { type: 'array', items: { type: 'string' } },
+            errorMessages: { type: 'array', items: { type: 'string' } },
+            testContext: { type: 'string' },
+          },
+          description: 'Additional context for better suggestions'
+        },
+        options: {
+          type: 'object',
+          properties: {
+            maxSuggestions: { type: 'number' },
+            creativityLevel: { type: 'string', enum: ['conservative', 'balanced', 'creative'] },
+            includeExplanation: { type: 'boolean' },
+            respectExistingStyle: { type: 'boolean' },
+          },
+        },
+      },
+      required: ['projectPath', 'currentFile', 'cursorPosition', 'prefix', 'mode'],
+    },
+  },
+  {
+    name: 'atlas_tech_debt_quantifier',
+    description: `FINANCIAL TECH DEBT ANALYSIS ENGINE
+
+Calculate the ACTUAL COST of technical debt in dollars:
+- Calculate actual monetary cost of technical debt
+- Estimate time to fix each debt item
+- Priority ranking with ROI calculations
+- Track debt accumulation over time with compound interest model
+- Predict future maintenance burden
+- Cost-benefit analysis for refactoring decisions
+- Team velocity impact estimation
+- Breaking point prediction (when debt becomes critical)
+
+Get executive-level financial reports on technical debt to justify refactoring budgets.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the project root' },
+        teamSize: { type: 'number', description: 'Number of developers on the team' },
+        hourlyRate: { type: 'number', description: 'Developer hourly rate (for cost calculation)' },
+        sprintLength: { type: 'number', description: 'Days per sprint' },
+        targetFiles: { type: 'array', items: { type: 'string' }, description: 'Files to analyze' },
+        includeProjections: { type: 'boolean', description: 'Include future debt projections (default: true)' },
+      },
+      required: ['projectPath'],
+    },
+  },
+  {
+    name: 'atlas_semantic_search',
+    description: `INTELLIGENT SEMANTIC CODE SEARCH ENGINE
+
+Search code by MEANING, not just keywords:
+- Search by meaning, not just text matching
+- Understand code intent and functionality
+- Find similar code patterns across the codebase
+- Discover code by behavior description
+- Cross-language semantic matching
+- Find usage examples of patterns
+- Semantic code clone detection
+- Intent-based API discovery
+- Natural language queries like "find all authentication code"
+
+Ask questions in plain English and find the code that matches the intent.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the project root' },
+        query: { type: 'string', description: 'Natural language query or code snippet to search for' },
+        queryType: { 
+          type: 'string',
+          enum: ['natural-language', 'code-snippet', 'pattern', 'behavior'],
+          description: 'Type of query (default: natural-language)'
+        },
+        filters: {
+          type: 'object',
+          properties: {
+            fileTypes: { type: 'array', items: { type: 'string' }, description: 'File extensions to search (e.g., [".ts", ".js"])' },
+            directories: { type: 'array', items: { type: 'string' }, description: 'Directories to search in' },
+            excludeTests: { type: 'boolean', description: 'Exclude test files' },
+            minSimilarity: { type: 'number', description: 'Minimum similarity score (0-1)' },
+          },
+        },
+        maxResults: { type: 'number', description: 'Maximum results to return (default: 20)' },
+        includeContext: { type: 'boolean', description: 'Include code context around matches' },
+      },
+      required: ['projectPath', 'query'],
+    },
+  },
+  {
+    name: 'atlas_smart_merge',
+    description: `AI-POWERED MERGE CONFLICT RESOLUTION
+
+Automatically resolve merge conflicts using AI:
+- Automatically resolve merge conflicts using AI
+- Understand code intent from both branches
+- Detect semantic conflicts (not just textual)
+- Preserve functionality from both sides when possible
+- Generate test cases for merged code
+- Confidence scoring for auto-resolutions
+- Interactive suggestions for manual review
+- Integration with git workflow
+
+Never waste hours on merge conflicts again - let AI handle them.`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        projectPath: { type: 'string', description: 'Path to the git repository root' },
+        conflictedFiles: { 
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Specific conflicted files (auto-detected if not provided)' 
+        },
+        autoResolve: { type: 'boolean', description: 'Automatically apply resolutions (default: false)' },
+        confidenceThreshold: { 
+          type: 'number',
+          description: 'Minimum confidence for auto-resolution (0-1, default: 0.7)' 
+        },
+        preserveBothWhenUnsure: { type: 'boolean', description: 'Keep both versions when uncertain' },
+        generateTests: { type: 'boolean', description: 'Generate test suggestions for resolved conflicts' },
+      },
+      required: ['projectPath'],
+    },
+  },
 ];
 
 // ============================================================================
@@ -1131,6 +1402,86 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
           generateZodSchemas: args['generateZodSchemas'] as boolean | undefined,
           authType: args['authType'] as any,
           framework: args['framework'] as any,
+        });
+        return result;
+      }
+
+      // ========================================================================
+      // 🚀 NEXT-GENERATION REVOLUTIONARY TOOL HANDLERS
+      // ========================================================================
+
+      case 'atlas_codebase_surgeon': {
+        const result = await performSurgery({
+          projectPath: z.string().parse(args['projectPath']),
+          operation: args['operation'] as any,
+          targetFiles: args['targetFiles'] as string[] | undefined,
+          dryRun: args['dryRun'] as boolean | undefined,
+          generateRollback: args['generateRollback'] as boolean | undefined,
+          validateBehavior: args['validateBehavior'] as boolean | undefined,
+          maxChangedFiles: args['maxChangedFiles'] as number | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_bug_oracle': {
+        const result = await predictBugs({
+          projectPath: z.string().parse(args['projectPath']),
+          targetFiles: args['targetFiles'] as string[] | undefined,
+          analysisDepth: args['analysisDepth'] as any,
+          includeGitHistory: args['includeGitHistory'] as boolean | undefined,
+          timeRange: args['timeRange'] as any,
+          customPatterns: args['customPatterns'] as any,
+        });
+        return result;
+      }
+
+      case 'atlas_code_whisperer': {
+        const result = await whisperCode({
+          projectPath: z.string().parse(args['projectPath']),
+          currentFile: z.string().parse(args['currentFile']),
+          cursorPosition: args['cursorPosition'] as any,
+          prefix: z.string().parse(args['prefix']),
+          suffix: args['suffix'] as string | undefined,
+          intent: args['intent'] as string | undefined,
+          mode: z.enum(['complete', 'generate', 'transform', 'explain', 'fix']).parse(args['mode']),
+          context: args['context'] as any,
+          options: args['options'] as any,
+        });
+        return result;
+      }
+
+      case 'atlas_tech_debt_quantifier': {
+        const result = await quantifyTechDebt({
+          projectPath: z.string().parse(args['projectPath']),
+          teamSize: args['teamSize'] as number | undefined,
+          hourlyRate: args['hourlyRate'] as number | undefined,
+          sprintLength: args['sprintLength'] as number | undefined,
+          targetFiles: args['targetFiles'] as string[] | undefined,
+          includeProjections: args['includeProjections'] as boolean | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_semantic_search': {
+        const result = await searchCode({
+          projectPath: z.string().parse(args['projectPath']),
+          query: z.string().parse(args['query']),
+          queryType: args['queryType'] as any,
+          filters: args['filters'] as any,
+          maxResults: args['maxResults'] as number | undefined,
+          includeContext: args['includeContext'] as boolean | undefined,
+        });
+        return result;
+      }
+
+      case 'atlas_smart_merge': {
+        const result = await resolveMergeConflicts({
+          projectPath: z.string().parse(args['projectPath']),
+          conflictedFiles: args['conflictedFiles'] as string[] | undefined,
+          autoResolve: args['autoResolve'] as boolean | undefined,
+          confidenceThreshold: args['confidenceThreshold'] as number | undefined,
+          preserveBothWhenUnsure: args['preserveBothWhenUnsure'] as boolean | undefined,
+          generateTests: args['generateTests'] as boolean | undefined,
         });
         return result;
       }

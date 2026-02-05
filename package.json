@@ -1,8 +1,8 @@
 {
   "name": "atlas-pipeline-mcp",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "mcpName": "io.github.IamNishant51/atlas-pipeline",
-  "description": "Advanced AI/ML-powered MCP server with 4 new frontend developer tools: Performance Doctor, CSS Wizard, Animation Studio, API Helper. 27 professional tools total. Works with Cursor, Windsurf, Claude Desktop.",
+  "description": "Revolutionary MCP server with 31 AI-powered tools including 6 next-gen tools: Codebase Surgeon, Bug Oracle, Code Whisperer, Tech Debt Quantifier, Semantic Search, Smart Merge Resolver. Works with Cursor, Windsurf, Claude Desktop.",
   "main": "dist/server.js",
   "bin": {
     "atlas-pipeline-mcp": "./dist/mcp.js",
@@ -60,7 +60,7 @@
     "@fastify/cors": "^9.0.1",
     "@fastify/env": "^4.4.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "atlas-pipeline-mcp": "^1.0.23",
+    "atlas-pipeline-mcp": "^1.0.27",
     "dotenv": "^17.2.3",
     "fastify": "^4.28.1",
     "ollama": "^0.5.9",
