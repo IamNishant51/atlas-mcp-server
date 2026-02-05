@@ -111,6 +111,15 @@ import quantifyTechDebt from './tools/tech-debt-quantifier.js';
 import searchCode from './tools/semantic-search.js';
 import resolveMergeConflicts from './tools/smart-merge-resolver.js';
 
+// AI Enhancement tools (dream tools)
+import { memoryBankTool, handleMemoryBank } from './tools/memory-bank.js';
+import { selfValidatorTool, handleSelfValidator } from './tools/self-validator.js';
+import { contextPrioritizerTool, handleContextPrioritizer } from './tools/context-prioritizer.js';
+import { errorPredictorTool, handleErrorPredictor } from './tools/error-predictor.js';
+import { patternLearnerTool, handlePatternLearner } from './tools/pattern-learner.js';
+import { executionSandboxTool, handleExecutionSandbox } from './tools/execution-sandbox.js';
+import { confidenceScorerTool, handleConfidenceScorer } from './tools/confidence-scorer.js';
+
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -948,6 +957,14 @@ Never waste hours on merge conflicts again - let AI handle them.`,
       required: ['projectPath'],
     },
   },
+  // AI Enhancement Tools
+  memoryBankTool,
+  selfValidatorTool,
+  contextPrioritizerTool,
+  errorPredictorTool,
+  patternLearnerTool,
+  executionSandboxTool,
+  confidenceScorerTool,
 ];
 
 // ============================================================================
@@ -1483,6 +1500,42 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
           preserveBothWhenUnsure: args['preserveBothWhenUnsure'] as boolean | undefined,
           generateTests: args['generateTests'] as boolean | undefined,
         });
+        return result;
+      }
+
+      // AI Enhancement Tools
+      case 'atlas_memory_bank': {
+        const result = await handleMemoryBank(args);
+        return result;
+      }
+
+      case 'atlas_self_validator': {
+        const result = await handleSelfValidator(args);
+        return result;
+      }
+
+      case 'atlas_context_prioritizer': {
+        const result = await handleContextPrioritizer(args);
+        return result;
+      }
+
+      case 'atlas_error_predictor': {
+        const result = await handleErrorPredictor(args);
+        return result;
+      }
+
+      case 'atlas_pattern_learner': {
+        const result = await handlePatternLearner(args);
+        return result;
+      }
+
+      case 'atlas_execution_sandbox': {
+        const result = await handleExecutionSandbox(args);
+        return result;
+      }
+
+      case 'atlas_confidence_scorer': {
+        const result = await handleConfidenceScorer(args);
         return result;
       }
 

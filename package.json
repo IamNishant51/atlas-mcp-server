@@ -1,8 +1,8 @@
 {
   "name": "atlas-pipeline-mcp",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "mcpName": "io.github.IamNishant51/atlas-pipeline",
-  "description": "Revolutionary MCP server with 31 AI-powered tools including 6 next-gen tools: Codebase Surgeon, Bug Oracle, Code Whisperer, Tech Debt Quantifier, Semantic Search, Smart Merge Resolver. Works with Cursor, Windsurf, Claude Desktop.",
+  "description": "Revolutionary MCP server with 40 AI-powered tools including 7 AI Enhancement tools (Memory Bank, Self-Validator, Context Prioritizer, Error Predictor, Pattern Learner, Execution Sandbox, Confidence Scorer) plus 6 next-gen tools. Works with Cursor, Windsurf, Claude Desktop.",
   "main": "dist/server.js",
   "bin": {
     "atlas-pipeline-mcp": "./dist/mcp.js",
