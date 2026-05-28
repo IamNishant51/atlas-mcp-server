@@ -548,4 +548,7 @@ MIT License - see LICENSE file for details
 
 **Built by Nishant Unavane**
 
+---
+🌐 **Check out my portfolio:** [nishantunavane.qzz.io](https://nishantunavane.qzz.io)
+
 For support, documentation, or questions, visit our [GitHub repository](https://github.com/IamNishant51/atlas-mcp-server).
