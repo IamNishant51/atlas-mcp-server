@@ -22,7 +22,7 @@
 import { getActiveProvider, isNoLLMMode } from '../providers/index.js';
 import { logger, createTimer } from '../utils.js';
 import { z } from 'zod';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -403,7 +403,9 @@ export async function resolveMergeConflicts(request: MergeResolverRequest): Prom
     conflictedFiles = request.conflictedFiles;
   } else {
     try {
-      const output = execSync('git diff --name-only --diff-filter=U', {
+      // No shell: run git with argv only, so the project path can never be
+      // interpreted as a shell command (see GHSA-w3gh-28jp-2hmv).
+      const output = execFileSync('git', ['diff', '--name-only', '--diff-filter=U'], {
         cwd: request.projectPath,
         encoding: 'utf-8',
       });

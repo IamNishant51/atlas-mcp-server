@@ -23,7 +23,7 @@ import { logger, createTimer } from '../utils.js';
 import { z } from 'zod';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 // ============================================================================
 // Types
@@ -221,28 +221,36 @@ function calculateCoupling(code: string): number {
  */
 function getGitChurn(projectPath: string, filePath: string): { commits: number; authors: number; recentChanges: number } {
   try {
-    const relativePath = path.relative(projectPath, filePath);
-    
+    // Security (GHSA-w3gh-28jp-2hmv, CWE-78): never invoke git through a shell.
+    // All arguments are passed as argv to execFileSync, and the project path
+    // must be absolute with the file inside it, so a caller-supplied path can
+    // never be interpreted as a shell command or a git option.
+    if (!path.isAbsolute(projectPath)) {
+      return { commits: 0, authors: 0, recentChanges: 0 };
+    }
+    const projectRoot = path.resolve(projectPath);
+    const absoluteFile = path.resolve(projectRoot, filePath);
+    const relativePath = path.relative(projectRoot, absoluteFile);
+    if (relativePath === '' || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      return { commits: 0, authors: 0, recentChanges: 0 };
+    }
+    const git = (args: string[]): string =>
+      execFileSync('git', ['-C', projectRoot, ...args], { encoding: 'utf-8' });
+
     // Total commits
     const commits = parseInt(
-      execSync(`git -C "${projectPath}" rev-list --count HEAD -- "${relativePath}"`, { encoding: 'utf-8' }).trim()
+      git(['rev-list', '--count', 'HEAD', '--', relativePath]).trim()
     ) || 0;
-    
+
     // Unique authors
-    const authorsOutput = execSync(
-      `git -C "${projectPath}" shortlog -sn -- "${relativePath}"`, 
-      { encoding: 'utf-8' }
-    );
+    const authorsOutput = git(['shortlog', '-sn', '--', relativePath]);
     const authors = authorsOutput.split('\n').filter(l => l.trim()).length;
-    
+
     // Recent changes (last 30 days)
     const recentChanges = parseInt(
-      execSync(
-        `git -C "${projectPath}" rev-list --count --since="30 days ago" HEAD -- "${relativePath}"`,
-        { encoding: 'utf-8' }
-      ).trim()
+      git(['rev-list', '--count', '--since=30 days ago', 'HEAD', '--', relativePath]).trim()
     ) || 0;
-    
+
     return { commits, authors, recentChanges };
   } catch {
     return { commits: 0, authors: 0, recentChanges: 0 };
@@ -344,20 +352,30 @@ export async function predictBugs(request: BugOracleRequest): Promise<BugOracleR
     return files;
   }
   
-  const filesToAnalyze = request.targetFiles || await findFiles(request.projectPath);
-  
+  // Security (GHSA-w3gh-28jp-2hmv): resolve the project root to an absolute path
+  // and only analyze files inside it, so caller-supplied target files can never
+  // escape the project (e.g. via `..`) or be resolved against another directory.
+  const projectPath = path.resolve(request.projectPath);
+  const requestedFiles = request.targetFiles || await findFiles(projectPath);
+  const filesToAnalyze = requestedFiles
+    .map(f => path.resolve(projectPath, f))
+    .filter(f => {
+      const rel = path.relative(projectPath, f);
+      return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+    });
+
   for (const filePath of filesToAnalyze) {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n');
       const linesOfCode = lines.filter(l => l.trim() && !l.trim().startsWith('//')).length;
-      
+
       // Calculate metrics
       const complexity = calculateComplexity(content);
       const cognitiveComplexity = calculateCognitiveComplexity(content);
       const coupling = calculateCoupling(content);
-      const churn = request.includeGitHistory !== false 
-        ? getGitChurn(request.projectPath, filePath)
+      const churn = request.includeGitHistory !== false
+        ? getGitChurn(projectPath, filePath)
         : { commits: 0, authors: 0, recentChanges: 0 };
       
       // Detect patterns
@@ -497,7 +515,7 @@ export async function predictBugs(request: BugOracleRequest): Promise<BugOracleR
       }
       
       predictions.push({
-        filePath: path.relative(request.projectPath, filePath),
+        filePath: path.relative(projectPath, filePath),
         overallRiskScore: riskScore,
         bugProbability,
         confidence: request.analysisDepth === 'deep' ? 0.85 : 
